@@ -43,14 +43,6 @@ const SCREENS = [
     color: "#7C3AED",
   },
   {
-    title: "Magic Links",
-    desc: "Generate time-limited backup links when QR codes aren't available",
-    href: "/magic-links",
-    icon: "\u{1F517}",
-    role: "Transport Manager",
-    color: "#0891B2",
-  },
-  {
     title: "Company Detail",
     desc: "Full operator profile — fleet, contacts, compliance, recent checks",
     href: "/company",

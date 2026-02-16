@@ -22,6 +22,42 @@ const STATUS = {
 };
 const TYPES = { HGV: "\u{1F69B}", Van: "\u{1F690}", Trailer: "\u{1F517}" };
 
+function printSingleDefect(d) {
+  const sev = SEVERITY[d.severity]; const stat = STATUS[d.status];
+  const win = window.open("", "_blank");
+  const infoRow = (label, value) => '<div class="info-item"><div class="info-label">' + label + '</div><div class="info-value">' + (value || "\u2014") + '</div></div>';
+  const noteHtml = (d.notes && d.notes.length > 0) ? '<h3 style="font-size:14px;margin:16px 0 10px">Timeline (' + d.notes.length + ')</h3>' +
+    d.notes.map(n => '<div class="note"><div style="display:flex;justify-content:space-between"><span class="note-author">' + n.author + '</span><span class="note-date">' + formatDate(n.created_at) + '</span></div><div class="note-text">' + n.text + '</div></div>').join("") : "";
+  win.document.write('<!DOCTYPE html><html><head><title>Defect - ' + d.vehicle_reg + '</title><style>' +
+    "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');" +
+    "body { font-family: 'DM Sans', sans-serif; padding: 30px; max-width: 800px; margin: 0 auto; color: #0F172A; }" +
+    ".header { display: flex; justify-content: space-between; border-bottom: 3px solid #0F172A; padding-bottom: 14px; margin-bottom: 20px; }" +
+    ".logo { font-size: 18px; font-weight: 800; } .logo span { color: #2563EB; }" +
+    ".info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 20px; }" +
+    ".info-item { padding: 8px 12px; background: #F8FAFC; border-radius: 6px; }" +
+    ".info-label { font-size: 9px; color: #6B7280; text-transform: uppercase; font-weight: 700; }" +
+    ".info-value { font-size: 13px; font-weight: 700; margin-top: 2px; }" +
+    ".badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-right: 8px; }" +
+    ".desc { padding: 14px 18px; border-radius: 10px; background: #F8FAFC; border: 1px solid #E5E7EB; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }" +
+    ".note { margin-bottom: 10px; padding: 10px 14px; border-radius: 8px; background: #F8FAFC; border: 1px solid #E5E7EB; }" +
+    ".note-author { font-size: 12px; font-weight: 700; } .note-date { font-size: 10px; color: #6B7280; } .note-text { font-size: 12px; margin-top: 4px; }" +
+    ".footer { margin-top: 24px; text-align: center; font-size: 9px; color: #94A3B8; border-top: 1px solid #E5E7EB; padding-top: 10px; }" +
+    "@media print { body { padding: 15px; } @page { margin: 1cm; } }" +
+    '</style></head><body>' +
+    '<div class="header"><div><div class="logo">\u{1F69B} Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Defect Record</div></div>' +
+    '<div style="text-align:right"><div style="font-size:22px;font-weight:800;font-family:monospace">' + d.vehicle_reg + '</div><div style="font-size:12px;color:#6B7280">' + (d.vehicle_type || "") + '</div></div></div>' +
+    '<div style="margin-bottom:16px"><span class="badge" style="background:' + stat.bg + ';color:' + stat.text + ';border:1px solid ' + stat.border + '">' + stat.label + '</span>' +
+    '<span class="badge" style="background:' + sev.bg + ';color:' + sev.text + ';border:1px solid ' + sev.border + '">' + sev.label + '</span></div>' +
+    '<div class="desc">' + d.description + '</div>' +
+    '<div class="info-grid">' + infoRow("Vehicle", d.vehicle_reg) + infoRow("Company", d.company_name) + infoRow("Reported", d.reported_date ? formatDate(d.reported_date) : null) +
+    infoRow("Category", d.category) + infoRow("Reported By", d.reported_by) + infoRow("Assigned To", d.assigned_to || "Unassigned") +
+    (d.resolved_date ? infoRow("Resolved", formatDate(d.resolved_date)) : "") + (d.resolved_by ? infoRow("Resolved By", d.resolved_by) : "") +
+    (d.closed_date ? infoRow("Closed", formatDate(d.closed_date)) : "") + '</div>' +
+    noteHtml +
+    '<div class="footer">ComplyFleet \u00B7 DVSA Compliance Platform \u00B7 complyfleet.vercel.app \u00B7 Record permanently stored</div></body></html>');
+  win.document.close(); setTimeout(() => win.print(), 500);
+}
+
 const MOCK_DEFECTS = [
   { id: "d1", vehicle_reg: "BD63 XYZ", vehicle_type: "HGV", company_name: "Hargreaves Haulage Ltd", category: "Brakes", description: "Nearside brake pad worn below limit", severity: "dangerous", status: "open", reported_by: "Mark Thompson", reported_date: "2026-02-15", assigned_to: null, notes: [] },
   { id: "d2", vehicle_reg: "GH45 IJK", vehicle_type: "HGV", company_name: "Yorkshire Fleet Services", category: "MOT", description: "MOT expired \u2014 vehicle must not be used", severity: "dangerous", status: "in_progress", reported_by: "Steve Williams", reported_date: "2026-02-13", assigned_to: "Gary Firth", notes: [
@@ -336,6 +372,7 @@ export default function ComplyFleetDefects() {
 
                 {/* NO DELETE — only status transitions */}
                 <div style={{ padding: "16px 0 0", borderTop: "1px solid #F3F4F6", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button onClick={() => printSingleDefect(d)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F4C4}"} Download PDF</button>
                   <button onClick={() => setShowNote(d.id)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F4DD}"} Add Note</button>
                   {d.status === "open" && <button onClick={() => setConfirm({ title: "Assign & Start Work?", message: "This will move the defect to 'In Progress'.", icon: "\u{1F527}", confirmLabel: "Start Work", confirmColor: "#2563EB", onConfirm: () => changeStatus(d.id, "in_progress") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>{"\u{1F527}"} Assign & Start</button>}
                   {d.status === "in_progress" && <button onClick={() => setConfirm({ title: "Mark as Resolved?", message: "Confirm the defect has been repaired.", icon: "\u2705", confirmLabel: "Resolve", confirmColor: "#059669", onConfirm: () => changeStatus(d.id, "resolved") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #059669, #10B981)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>{"\u2705"} Mark Resolved</button>}
