@@ -2,9 +2,6 @@
 import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 import { ConfirmDialog, Toast } from "../../components/ConfirmDialog";
-import { ComplianceDonutInline } from "../../components/ComplianceDonut";
-import ExportDropdown from "../../components/ExportDropdown";
-import { calcComplianceScore, scoreColor, exportFleetCSV, printReport } from "../../lib/utils";
 
 const TODAY = new Date("2026-02-16");
 function getDaysUntil(d) { if (!d) return null; return Math.floor((new Date(d) - TODAY) / 86400000); }
@@ -168,7 +165,6 @@ function VehicleFormModal({ vehicle, companyId, onSave, onClose }) {
 export default function ComplyFleetCompany() {
   const [companies, setCompanies] = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [defects, setDefects] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [companyForm, setCompanyForm] = useState(null);
@@ -184,12 +180,9 @@ export default function ComplyFleetCompany() {
   async function loadData() {
     setLoading(true);
     if (isSupabaseReady()) {
-      const [cRes, vRes, dRes] = await Promise.all([
-        supabase.from("companies").select("*").order("name"),
-        supabase.from("vehicles").select("*").order("reg"),
-        supabase.from("defects").select("*").in("status", ["open", "in_progress"]),
-      ]);
-      setCompanies(cRes.data || []); setVehicles(vRes.data || []); setDefects(dRes.data || []);
+      const { data: cos } = await supabase.from("companies").select("*").order("name");
+      const { data: vehs } = await supabase.from("vehicles").select("*").order("reg");
+      setCompanies(cos || []); setVehicles(vehs || []);
     } else {
       setCompanies(MOCK_COMPANIES); setVehicles(MOCK_VEHICLES);
     }
@@ -300,10 +293,7 @@ export default function ComplyFleetCompany() {
             visibleCompanies.length === 0 ? <div style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>{showArchived ? "No archived companies" : "No companies yet"}</div> :
             visibleCompanies.map(c => {
               const risk = getCompanyRisk(c.id);
-              const cVehicles = vehicles.filter(v => v.company_id === c.id && !v.archived_at);
-              const cDefects = defects.filter(d => d.company_id === c.id);
-              const score = calcComplianceScore(cVehicles, cDefects);
-              const vCount = cVehicles.length;
+              const vCount = vehicles.filter(v => v.company_id === c.id && !v.archived_at).length;
               const isSel = selectedId === c.id;
               const isArch = !!c.archived_at;
               return (
@@ -315,12 +305,9 @@ export default function ComplyFleetCompany() {
                   <div style={{ height: "3px", background: isArch ? "#9CA3AF" : RISK[risk].dot }} />
                   <div style={{ padding: "18px 22px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                        {!isArch && <ComplianceDonutInline score={score} size={44} />}
-                        <div>
-                          <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#111827", margin: 0 }}>{c.name}</h3>
-                          <div style={{ fontSize: "12px", color: "#6B7280", fontFamily: "monospace", marginTop: "2px" }}>{c.o_licence}</div>
-                        </div>
+                      <div>
+                        <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#111827", margin: 0 }}>{c.name}</h3>
+                        <div style={{ fontSize: "12px", color: "#6B7280", fontFamily: "monospace", marginTop: "2px" }}>{c.o_licence}</div>
                       </div>
                       {isArch ? <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#F3F4F6", fontSize: "10px", fontWeight: 700, color: "#6B7280" }}>ARCHIVED</span> : <RiskPill level={risk} />}
                     </div>

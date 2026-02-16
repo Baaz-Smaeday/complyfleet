@@ -2,9 +2,6 @@
 import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 import { ConfirmDialog, Toast } from "../../components/ConfirmDialog";
-import ComplianceDonut from "../../components/ComplianceDonut";
-import ExportDropdown from "../../components/ExportDropdown";
-import { calcComplianceScore, exportFleetCSV, exportDefectsCSV, exportChecksCSV, printReport } from "../../lib/utils";
 
 const TODAY = new Date("2026-02-16");
 function getDaysUntil(d) { if (!d) return null; return Math.floor((new Date(d) - TODAY) / 86400000); }

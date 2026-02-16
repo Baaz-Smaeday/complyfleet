@@ -2,8 +2,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 import { ConfirmDialog, Toast } from "../../components/ConfirmDialog";
-import ExportDropdown from "../../components/ExportDropdown";
-import { exportFleetCSV, printReport } from "../../lib/utils";
 
 const TODAY = new Date("2026-02-16");
 function getDaysUntil(d) { if (!d) return null; return Math.floor((new Date(d) - TODAY) / 86400000); }
@@ -95,17 +93,9 @@ export default function ComplyFleetVehicle() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [riskFilter, setRiskFilter] = useState("all"); // all, overdue, due7, compliant
-
   const flash = (msg, type = "success") => { setToast({ message: msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("filter")) setRiskFilter(params.get("filter"));
-    if (params.get("showArchived") === "1") setShowArchived(true);
-    if (params.get("company")) setSelectedCompany(params.get("company"));
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
@@ -164,10 +154,6 @@ export default function ComplyFleetVehicle() {
     if (selectedCompany !== "all") vehs = vehs.filter(v => v.company_id === selectedCompany);
     if (typeFilter !== "all") vehs = vehs.filter(v => v.type === typeFilter);
     if (search) { const q = search.toLowerCase(); vehs = vehs.filter(v => v.reg.toLowerCase().includes(q) || (v.make || "").toLowerCase().includes(q) || (v.model || "").toLowerCase().includes(q)); }
-    // Risk filter from query params or stat card clicks
-    if (riskFilter === "overdue") vehs = vehs.filter(v => DATE_FIELDS.some(f => { const d = getDaysUntil(v[f.key]); return d !== null && d < 0; }));
-    else if (riskFilter === "due7") vehs = vehs.filter(v => { const w = Math.min(...DATE_FIELDS.map(f => getDaysUntil(v[f.key]) ?? 9999)); return w >= 0 && w <= 7; });
-    else if (riskFilter === "compliant") vehs = vehs.filter(v => { const w = Math.min(...DATE_FIELDS.map(f => getDaysUntil(v[f.key]) ?? 9999)); return w > 7; });
     if (!showArchived) {
       vehs = [...vehs].sort((a, b) => {
         const aDays = Math.min(...DATE_FIELDS.map(f => getDaysUntil(a[f.key]) ?? 9999));
@@ -176,7 +162,7 @@ export default function ComplyFleetVehicle() {
       });
     }
     return vehs;
-  }, [displayVehicles, selectedCompany, typeFilter, search, showArchived, riskFilter]);
+  }, [displayVehicles, selectedCompany, typeFilter, search, showArchived]);
 
   const overdue = allActive.filter(v => DATE_FIELDS.some(f => { const d = getDaysUntil(v[f.key]); return d !== null && d < 0; })).length;
   const dueSoon = allActive.filter(v => { const w = Math.min(...DATE_FIELDS.map(f => getDaysUntil(v[f.key]) ?? 9999)); return w >= 0 && w <= 7; }).length;
@@ -203,26 +189,40 @@ export default function ComplyFleetVehicle() {
           <div><h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>{"\u{1F69B}"} Vehicle Compliance</h1>
             <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>{filtered.length} vehicles {"\u2014"} sorted by risk</p></div>
           <div style={{ display: "flex", gap: "8px" }}>
-            <ExportDropdown
-              onCSV={() => exportFleetCSV(filtered, `fleet-${riskFilter !== "all" ? riskFilter + "-" : ""}${new Date().toISOString().split("T")[0]}.csv`)}
-              onPDF={() => printReport("Vehicle Compliance", `${filtered.length} vehicles${riskFilter !== "all" ? " (" + riskFilter + ")" : ""}`, ["Reg", "Type", "Make/Model", "MOT", "PMI", "Insurance", "Tacho", "Service"], filtered.map(v => { const fd = (d) => d ? new Date(d).toLocaleDateString("en-GB") : "-"; return [`<span class="mono">${v.reg}</span>`, v.type, `${v.make||""} ${v.model||""}`, `<span class="${getDaysUntil(v.mot_due) < 0 ? "red" : getDaysUntil(v.mot_due) <= 7 ? "amber" : ""}">${fd(v.mot_due)}</span>`, `<span class="${getDaysUntil(v.pmi_due) < 0 ? "red" : getDaysUntil(v.pmi_due) <= 7 ? "amber" : ""}">${fd(v.pmi_due)}</span>`, fd(v.insurance_due), fd(v.tacho_due), fd(v.service_due)]; }), (row) => row[3]?.includes("red") ? "danger" : row[3]?.includes("amber") ? "warn" : "")}
-            />
+            <button onClick={() => {
+              const win = window.open("", "_blank");
+              win.document.write(`<!DOCTYPE html><html><head><title>ComplyFleet - Vehicle Compliance</title><style>
+                @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+                body { font-family: 'DM Sans', sans-serif; padding: 30px; max-width: 1000px; margin: 0 auto; }
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid #0F172A; padding-bottom: 12px; margin-bottom: 20px; }
+                .logo { font-size: 18px; font-weight: 800; } .logo span { color: #2563EB; }
+                table { width: 100%; border-collapse: collapse; } th { background: #0F172A; color: white; padding: 6px 10px; text-align: left; font-size: 10px; text-transform: uppercase; }
+                td { padding: 6px 10px; border-bottom: 1px solid #E5E7EB; font-size: 11px; }
+                .overdue { color: #DC2626; font-weight: 700; } .soon { color: #D97706; font-weight: 700; }
+                .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #94A3B8; border-top: 1px solid #E5E7EB; padding-top: 12px; }
+                @media print { body { padding: 15px; } }
+              </style></head><body>
+              <div class="header"><div><div class="logo">\u{1F69B} Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Vehicle Compliance Report</div></div>
+              <div style="text-align:right;font-size:12px;color:#6B7280">Generated: ${new Date().toLocaleDateString("en-GB")}<br>${filtered.length} vehicles</div></div>
+              <table><thead><tr><th>Reg</th><th>Type</th><th>Make/Model</th><th>MOT</th><th>PMI</th><th>Insurance</th><th>Tacho</th><th>Service</th></tr></thead><tbody>
+              ${filtered.map(v => {
+                const fd = (d) => d ? new Date(d).toLocaleDateString("en-GB") : "-";
+                const cls = (d) => { if (!d) return ""; const days = Math.floor((new Date(d) - new Date()) / 86400000); return days < 0 ? "overdue" : days <= 7 ? "soon" : ""; };
+                return `<tr><td style="font-family:monospace;font-weight:700">${v.reg}</td><td>${v.type}</td><td>${v.make||""} ${v.model||""}</td><td class="${cls(v.mot_due)}">${fd(v.mot_due)}</td><td class="${cls(v.pmi_due)}">${fd(v.pmi_due)}</td><td class="${cls(v.insurance_due)}">${fd(v.insurance_due)}</td><td class="${cls(v.tacho_due)}">${fd(v.tacho_due)}</td><td class="${cls(v.service_due)}">${fd(v.service_due)}</td></tr>`;
+              }).join("")}
+              </tbody></table><div class="footer">ComplyFleet \u00B7 complyfleet.vercel.app</div></body></html>`);
+              win.document.close(); setTimeout(() => win.print(), 500);
+            }} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "12px", background: "#FFF", fontSize: "13px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F5A8}\uFE0F"} Export</button>
             <button onClick={() => setShowArchived(!showArchived)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid", borderColor: showArchived ? "#FDE68A" : "#E5E7EB", background: showArchived ? "#FEF3C7" : "#FFF", fontSize: "12px", fontWeight: 700, color: showArchived ? "#92400E" : "#6B7280", cursor: "pointer" }}>{showArchived ? `\u{1F4E6} Archived (${allArchived.length})` : `\u{1F4E6} Show Archived (${allArchived.length})`}</button>
           </div>
         </div>
 
         {!showArchived && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "24px" }}>
-          {[{ icon: "\u{1F534}", value: overdue, label: "Overdue", accent: "#DC2626", f: "overdue" }, { icon: "\u{1F7E1}", value: dueSoon, label: "Due \u2264 7 Days", accent: "#D97706", f: "due7" }, { icon: "\u{1F7E2}", value: allActive.length - overdue - dueSoon, label: "Compliant", accent: "#059669", f: "compliant" }, { icon: "\u{1F4E6}", value: allArchived.length, label: "Archived", accent: "#64748B", f: "archived" }].map(s => (
-            <div key={s.label} onClick={() => { if (s.f === "archived") setShowArchived(true); else { setShowArchived(false); setRiskFilter(riskFilter === s.f ? "all" : s.f); } }} style={{ background: "#FFF", borderRadius: "16px", padding: "20px 24px", border: `2px solid ${riskFilter === s.f ? s.accent : "#E5E7EB"}`, display: "flex", alignItems: "center", gap: "16px", cursor: "pointer", transition: "all 0.15s" }}
-              onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
-              onMouseLeave={e => e.currentTarget.style.transform = ""}>
+          {[{ icon: "\u{1F534}", value: overdue, label: "Overdue", accent: "#DC2626" }, { icon: "\u{1F7E1}", value: dueSoon, label: "Due \u2264 7 Days", accent: "#D97706" }, { icon: "\u{1F7E2}", value: allActive.length - overdue - dueSoon, label: "Compliant", accent: "#059669" }, { icon: "\u{1F4E6}", value: allArchived.length, label: "Archived", accent: "#64748B" }].map(s => (
+            <div key={s.label} style={{ background: "#FFF", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: "16px" }}>
               <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: s.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>{s.icon}</div>
               <div><div style={{ fontSize: "28px", fontWeight: 800, color: s.accent, lineHeight: 1 }}>{s.value}</div><div style={{ fontSize: "12px", color: "#6B7280", fontWeight: 500, marginTop: "4px" }}>{s.label}</div></div>
             </div>))}
-        </div>}
-        {riskFilter !== "all" && <div style={{ marginBottom: "12px", display: "flex", gap: "8px", alignItems: "center" }}>
-          <span style={{ fontSize: "12px", color: "#6B7280" }}>Filtered: <strong>{riskFilter}</strong></span>
-          <button onClick={() => setRiskFilter("all")} style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "11px", fontWeight: 700, color: "#6B7280", cursor: "pointer" }}>{"\u2715"} Clear</button>
         </div>}
 
         {overdue > 0 && !showArchived && <div style={{ padding: "16px 20px", borderRadius: "16px", background: "#FEF2F2", border: "2px solid #FECACA", marginBottom: "20px", display: "flex", alignItems: "center", gap: "12px" }}>

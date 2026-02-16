@@ -59,14 +59,6 @@ const SCREENS = [
     color: "#4F46E5",
   },
   {
-    title: "Walkaround Checks",
-    desc: "View all driver checks across every company — filter, export, download PDFs",
-    href: "/checks",
-    icon: "\u{1F4CB}",
-    role: "Transport Manager",
-    color: "#059669",
-  },
-  {
     title: "Super Admin",
     desc: "Platform owner panel — TMs, billing, MRR, revenue analytics",
     href: "/admin",
