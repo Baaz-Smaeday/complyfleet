@@ -223,7 +223,28 @@ export default function ComplyFleetDefects() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
           <div><h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>{"\u26A0\uFE0F"} Defect Management</h1>
             <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Track, assign and resolve defects. Defects cannot be deleted {"\u2014"} only closed.</p></div>
-          <button onClick={() => setShowAdd(true)} style={{ padding: "10px 20px", border: "none", borderRadius: "12px", background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>{"\u2795"} Report Defect</button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={() => {
+              const win = window.open("", "_blank");
+              win.document.write(`<!DOCTYPE html><html><head><title>ComplyFleet - Defects Report</title><style>
+                @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+                body { font-family: 'DM Sans', sans-serif; padding: 30px; max-width: 900px; margin: 0 auto; }
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid #0F172A; padding-bottom: 12px; margin-bottom: 20px; }
+                .logo { font-size: 18px; font-weight: 800; } .logo span { color: #2563EB; }
+                table { width: 100%; border-collapse: collapse; } th { background: #0F172A; color: white; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; }
+                td { padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-size: 12px; }
+                .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #94A3B8; border-top: 1px solid #E5E7EB; padding-top: 12px; }
+                @media print { body { padding: 15px; } }
+              </style></head><body>
+              <div class="header"><div><div class="logo">\u{1F69B} Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Defects Report</div></div>
+              <div style="text-align:right;font-size:12px;color:#6B7280">Generated: ${new Date().toLocaleDateString("en-GB")}<br>${filtered.length} defects</div></div>
+              <table><thead><tr><th>Vehicle</th><th>Company</th><th>Description</th><th>Category</th><th>Severity</th><th>Status</th><th>Reported</th></tr></thead><tbody>
+              ${filtered.map(d => `<tr><td style="font-family:monospace;font-weight:700">${d.vehicle_reg||""}</td><td>${d.company_name||""}</td><td>${d.description||""}</td><td>${d.category||""}</td><td style="font-weight:700">${(d.severity||"").toUpperCase()}</td><td>${(d.status||"").replace("_"," ").toUpperCase()}</td><td>${d.reported_date ? new Date(d.reported_date).toLocaleDateString("en-GB") : ""}</td></tr>`).join("")}
+              </tbody></table><div class="footer">ComplyFleet \u00B7 complyfleet.vercel.app</div></body></html>`);
+              win.document.close(); setTimeout(() => win.print(), 500);
+            }} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "12px", background: "#FFF", fontSize: "13px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F5A8}\uFE0F"} Export</button>
+            <button onClick={() => setShowAdd(true)} style={{ padding: "10px 20px", border: "none", borderRadius: "12px", background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>{"\u2795"} Report Defect</button>
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "24px" }}>

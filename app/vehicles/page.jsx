@@ -188,7 +188,33 @@ export default function ComplyFleetVehicle() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
           <div><h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>{"\u{1F69B}"} Vehicle Compliance</h1>
             <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>{filtered.length} vehicles {"\u2014"} sorted by risk</p></div>
-          <button onClick={() => setShowArchived(!showArchived)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid", borderColor: showArchived ? "#FDE68A" : "#E5E7EB", background: showArchived ? "#FEF3C7" : "#FFF", fontSize: "12px", fontWeight: 700, color: showArchived ? "#92400E" : "#6B7280", cursor: "pointer" }}>{showArchived ? `\u{1F4E6} Archived (${allArchived.length})` : `\u{1F4E6} Show Archived (${allArchived.length})`}</button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={() => {
+              const win = window.open("", "_blank");
+              win.document.write(`<!DOCTYPE html><html><head><title>ComplyFleet - Vehicle Compliance</title><style>
+                @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+                body { font-family: 'DM Sans', sans-serif; padding: 30px; max-width: 1000px; margin: 0 auto; }
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid #0F172A; padding-bottom: 12px; margin-bottom: 20px; }
+                .logo { font-size: 18px; font-weight: 800; } .logo span { color: #2563EB; }
+                table { width: 100%; border-collapse: collapse; } th { background: #0F172A; color: white; padding: 6px 10px; text-align: left; font-size: 10px; text-transform: uppercase; }
+                td { padding: 6px 10px; border-bottom: 1px solid #E5E7EB; font-size: 11px; }
+                .overdue { color: #DC2626; font-weight: 700; } .soon { color: #D97706; font-weight: 700; }
+                .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #94A3B8; border-top: 1px solid #E5E7EB; padding-top: 12px; }
+                @media print { body { padding: 15px; } }
+              </style></head><body>
+              <div class="header"><div><div class="logo">\u{1F69B} Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Vehicle Compliance Report</div></div>
+              <div style="text-align:right;font-size:12px;color:#6B7280">Generated: ${new Date().toLocaleDateString("en-GB")}<br>${filtered.length} vehicles</div></div>
+              <table><thead><tr><th>Reg</th><th>Type</th><th>Make/Model</th><th>MOT</th><th>PMI</th><th>Insurance</th><th>Tacho</th><th>Service</th></tr></thead><tbody>
+              ${filtered.map(v => {
+                const fd = (d) => d ? new Date(d).toLocaleDateString("en-GB") : "-";
+                const cls = (d) => { if (!d) return ""; const days = Math.floor((new Date(d) - new Date()) / 86400000); return days < 0 ? "overdue" : days <= 7 ? "soon" : ""; };
+                return `<tr><td style="font-family:monospace;font-weight:700">${v.reg}</td><td>${v.type}</td><td>${v.make||""} ${v.model||""}</td><td class="${cls(v.mot_due)}">${fd(v.mot_due)}</td><td class="${cls(v.pmi_due)}">${fd(v.pmi_due)}</td><td class="${cls(v.insurance_due)}">${fd(v.insurance_due)}</td><td class="${cls(v.tacho_due)}">${fd(v.tacho_due)}</td><td class="${cls(v.service_due)}">${fd(v.service_due)}</td></tr>`;
+              }).join("")}
+              </tbody></table><div class="footer">ComplyFleet \u00B7 complyfleet.vercel.app</div></body></html>`);
+              win.document.close(); setTimeout(() => win.print(), 500);
+            }} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "12px", background: "#FFF", fontSize: "13px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F5A8}\uFE0F"} Export</button>
+            <button onClick={() => setShowArchived(!showArchived)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid", borderColor: showArchived ? "#FDE68A" : "#E5E7EB", background: showArchived ? "#FEF3C7" : "#FFF", fontSize: "12px", fontWeight: 700, color: showArchived ? "#92400E" : "#6B7280", cursor: "pointer" }}>{showArchived ? `\u{1F4E6} Archived (${allArchived.length})` : `\u{1F4E6} Show Archived (${allArchived.length})`}</button>
+          </div>
         </div>
 
         {!showArchived && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "24px" }}>

@@ -38,11 +38,13 @@ function SevPill({ level }) {
   </span>);
 }
 
-function StatCard({ icon, value, label, accent, sub }) {
-  return (<div style={{ background: "#FFFFFF", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", display: "flex", alignItems: "center", gap: "16px" }}>
+function StatCard({ icon, value, label, accent, sub, href }) {
+  const inner = (<div style={{ background: "#FFFFFF", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", display: "flex", alignItems: "center", gap: "16px", cursor: href ? "pointer" : "default", transition: "all 0.15s" }}>
     <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>{icon}</div>
     <div><div style={{ fontSize: "28px", fontWeight: 800, color: accent, lineHeight: 1 }}>{value}</div><div style={{ fontSize: "12px", color: "#6B7280", fontWeight: 500, marginTop: "4px" }}>{label}</div>{sub && <div style={{ fontSize: "11px", color: accent, fontWeight: 600, marginTop: "2px" }}>{sub}</div>}</div>
   </div>);
+  if (href) return <a href={href} style={{ textDecoration: "none", color: "inherit" }} onMouseEnter={e => { e.currentTarget.firstChild.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; e.currentTarget.firstChild.style.transform = "translateY(-2px)"; }} onMouseLeave={e => { e.currentTarget.firstChild.style.boxShadow = ""; e.currentTarget.firstChild.style.transform = ""; }}>{inner}</a>;
+  return inner;
 }
 
 export default function ComplyFleetDashboard() {
@@ -70,6 +72,48 @@ export default function ComplyFleetDashboard() {
       setChecks(chRes.data || []);
     }
     setLoading(false);
+  }
+
+  function printDefectsReport(defectsList) {
+    const win = window.open("", "_blank");
+    win.document.write(`<!DOCTYPE html><html><head><title>ComplyFleet - Defects Report</title><style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+      body { font-family: 'DM Sans', sans-serif; margin: 0; padding: 30px; max-width: 900px; margin: 0 auto; }
+      .header { display: flex; justify-content: space-between; border-bottom: 3px solid #0F172A; padding-bottom: 12px; margin-bottom: 20px; }
+      .logo { font-size: 18px; font-weight: 800; } .logo span { color: #2563EB; }
+      table { width: 100%; border-collapse: collapse; } th { background: #0F172A; color: white; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; }
+      td { padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-size: 12px; }
+      .dangerous { color: #DC2626; font-weight: 700; } .major { color: #F97316; font-weight: 700; } .minor { color: #F59E0B; font-weight: 700; }
+      .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #94A3B8; border-top: 1px solid #E5E7EB; padding-top: 12px; }
+      @media print { body { padding: 15px; } }
+    </style></head><body>
+    <div class="header"><div><div class="logo">\u{1F69B} Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Open Defects Report</div></div>
+    <div style="text-align:right;font-size:12px;color:#6B7280">Generated: ${new Date().toLocaleDateString("en-GB")} ${new Date().toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"})}<br>${defectsList.length} defects</div></div>
+    <table><thead><tr><th>Vehicle</th><th>Description</th><th>Category</th><th>Severity</th><th>Status</th><th>Reported</th><th>Reported By</th></tr></thead><tbody>
+    ${defectsList.map(d => `<tr><td style="font-family:monospace;font-weight:700">${d.vehicle_reg || ""}</td><td>${d.description || ""}</td><td>${d.category || ""}</td><td class="${d.severity}">${(d.severity||"").toUpperCase()}</td><td>${(d.status||"").replace("_"," ").toUpperCase()}</td><td>${formatDate(d.reported_date)}</td><td>${d.reported_by||""}</td></tr>`).join("")}
+    </tbody></table><div class="footer">ComplyFleet \u00B7 DVSA Compliance Platform \u00B7 complyfleet.vercel.app</div></body></html>`);
+    win.document.close(); setTimeout(() => win.print(), 500);
+  }
+
+  function printChecksReport(checksList) {
+    const win = window.open("", "_blank");
+    win.document.write(`<!DOCTYPE html><html><head><title>ComplyFleet - Walkaround Checks Report</title><style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+      body { font-family: 'DM Sans', sans-serif; margin: 0; padding: 30px; max-width: 900px; margin: 0 auto; }
+      .header { display: flex; justify-content: space-between; border-bottom: 3px solid #0F172A; padding-bottom: 12px; margin-bottom: 20px; }
+      .logo { font-size: 18px; font-weight: 800; } .logo span { color: #2563EB; }
+      table { width: 100%; border-collapse: collapse; } th { background: #0F172A; color: white; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; }
+      td { padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-size: 12px; }
+      .pass { color: #059669; font-weight: 700; } .fail { color: #DC2626; font-weight: 700; }
+      .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #94A3B8; border-top: 1px solid #E5E7EB; padding-top: 12px; }
+      @media print { body { padding: 15px; } }
+    </style></head><body>
+    <div class="header"><div><div class="logo">\u{1F69B} Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Walkaround Checks Report</div></div>
+    <div style="text-align:right;font-size:12px;color:#6B7280">Generated: ${new Date().toLocaleDateString("en-GB")} ${new Date().toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"})}<br>${checksList.length} checks</div></div>
+    <table><thead><tr><th>Reference</th><th>Vehicle</th><th>Driver</th><th>Result</th><th>Items</th><th>Defects</th><th>Date</th></tr></thead><tbody>
+    ${checksList.map(ch => `<tr><td style="font-family:monospace">${ch.reference_id||""}</td><td style="font-family:monospace;font-weight:700">${ch.vehicle_reg||""}</td><td>${ch.driver_name||""}</td><td class="${ch.result==="pass"?"pass":"fail"}">${ch.result==="pass"?"\u2705 PASS":"\u26A0\uFE0F FAIL"}</td><td>${ch.passed_items||0}/${ch.total_items||0}</td><td>${ch.defects_reported||0}</td><td>${formatDate(ch.completed_at)}</td></tr>`).join("")}
+    </tbody></table><div class="footer">ComplyFleet \u00B7 DVSA Compliance Platform \u00B7 complyfleet.vercel.app</div></body></html>`);
+    win.document.close(); setTimeout(() => win.print(), 500);
   }
 
   // Computed stats
@@ -127,10 +171,10 @@ export default function ComplyFleetDashboard() {
         {loading ? <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8" }}>Loading dashboard...</div> : (<>
           {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", marginBottom: "24px" }}>
-            <StatCard icon={"\u{1F3E2}"} value={selectedCompany === "all" ? companies.length : 1} label="Companies" accent="#2563EB" />
-            <StatCard icon={"\u{1F69B}"} value={filteredVehicles.length} label="Active Vehicles" accent="#0F172A" sub={overdue > 0 ? `${overdue} overdue` : null} />
-            <StatCard icon={"\u26A0\uFE0F"} value={filteredDefects.length} label="Open Defects" accent="#DC2626" sub={dangerousOpen > 0 ? `${dangerousOpen} dangerous` : null} />
-            <StatCard icon={"\u2705"} value={checks.length} label="Recent Checks" accent="#059669" />
+            <StatCard icon={"\u{1F3E2}"} value={selectedCompany === "all" ? companies.length : 1} label="Companies" accent="#2563EB" href="/company" />
+            <StatCard icon={"\u{1F69B}"} value={filteredVehicles.length} label="Active Vehicles" accent="#0F172A" sub={overdue > 0 ? `${overdue} overdue` : null} href="/vehicles" />
+            <StatCard icon={"\u26A0\uFE0F"} value={filteredDefects.length} label="Open Defects" accent="#DC2626" sub={dangerousOpen > 0 ? `${dangerousOpen} dangerous` : null} href="/defects" />
+            <StatCard icon={"\u2705"} value={checks.length} label="Recent Checks" accent="#059669" href="/walkaround" />
           </div>
 
           {/* Alert */}
@@ -206,7 +250,10 @@ export default function ComplyFleetDashboard() {
               <div style={{ background: "#FFF", borderRadius: "20px", border: "1px solid #E5E7EB", overflow: "hidden" }}>
                 <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h2 style={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{"\u{1F534}"} Open Defects</h2>
-                  <a href="/defects" style={{ fontSize: "12px", fontWeight: 700, color: "#2563EB", textDecoration: "none" }}>View All {"\u2192"}</a>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => printDefectsReport(filteredDefects)} style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "10px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F5A8}\uFE0F"} Export</button>
+                    <a href="/defects" style={{ fontSize: "12px", fontWeight: 700, color: "#2563EB", textDecoration: "none", lineHeight: "24px" }}>View All {"\u2192"}</a>
+                  </div>
                 </div>
                 <div style={{ padding: "12px" }}>
                   {filteredDefects.length === 0 ? <div style={{ textAlign: "center", padding: "24px", color: "#10B981", fontSize: "13px", fontWeight: 600 }}>{"\u2705"} No open defects</div> :
@@ -225,8 +272,9 @@ export default function ComplyFleetDashboard() {
 
               {/* Recent Checks */}
               <div style={{ background: "#FFF", borderRadius: "20px", border: "1px solid #E5E7EB", overflow: "hidden" }}>
-                <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
+                <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h2 style={{ fontSize: "16px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{"\u{1F4CB}"} Recent Walkaround Checks</h2>
+                  <button onClick={() => printChecksReport(checks)} style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "10px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F5A8}\uFE0F"} Export</button>
                 </div>
                 <div style={{ padding: "12px" }}>
                   {checks.length === 0 ? <div style={{ textAlign: "center", padding: "24px", color: "#94A3B8", fontSize: "13px" }}>No checks yet {"\u2014"} send drivers to /walkaround</div> :
