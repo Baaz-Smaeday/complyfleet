@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 // ============================================================
 // COMPLYFLEET — Driver Daily Walkaround Check (Mobile-First)
@@ -103,18 +104,13 @@ const SEVERITY_OPTIONS = [
   { value: "dangerous", label: "Dangerous", desc: "Immediate safety risk — DO NOT DRIVE", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
 ];
 
-// --- Simulated magic link data ---
-const MAGIC_LINK_DATA = {
-  tenantName: "James Henderson — External TM",
-  company: { name: "Hargreaves Haulage Ltd", id: "c1" },
-  vehicles: [
-    { id: "v1", reg: "BD63 XYZ", type: "HGV" },
-    { id: "v2", reg: "KL19 ABC", type: "HGV" },
-    { id: "v3", reg: "MN20 DEF", type: "Van" },
-    { id: "v4", reg: "PQ21 GHI", type: "Trailer" },
-  ],
-  expires: "2026-02-17T06:00:00Z",
-};
+// --- Simulated magic link data (fallback) ---
+const MOCK_VEHICLES = [
+  { id: "v1", reg: "BD63 XYZ", type: "HGV", company_name: "Hargreaves Haulage Ltd", company_id: "c1" },
+  { id: "v2", reg: "KL19 ABC", type: "HGV", company_name: "Hargreaves Haulage Ltd", company_id: "c1" },
+  { id: "v3", reg: "MN20 DEF", type: "Van", company_name: "Hargreaves Haulage Ltd", company_id: "c1" },
+  { id: "v4", reg: "PQ21 GHI", type: "Trailer", company_name: "Hargreaves Haulage Ltd", company_id: "c1" },
+];
 
 // --- Components ---
 
@@ -376,9 +372,52 @@ export default function WalkaroundCheckForm() {
   const [declaration, setDeclaration] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [referenceId, setReferenceId] = useState("");
   const topRef = useRef(null);
 
-  const vehicle = MAGIC_LINK_DATA.vehicles.find(v => v.id === selectedVehicle);
+  // Load vehicles from Supabase or fallback to mock
+  const [dbVehicles, setDbVehicles] = useState([]);
+  const [vehiclesLoaded, setVehiclesLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadVehicles() {
+      if (isSupabaseReady()) {
+        // Check URL params for pre-selected vehicle
+        const params = new URLSearchParams(window.location.search);
+        const vehicleId = params.get("vehicle");
+        const companyId = params.get("company");
+
+        let query = supabase.from("vehicles").select("id, reg, type, company_id, make, model").is("archived_at", null);
+        if (companyId) query = query.eq("company_id", companyId);
+        const { data } = await query.order("reg");
+
+        if (data && data.length > 0) {
+          // Load company names
+          const companyIds = [...new Set(data.map(v => v.company_id))];
+          const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
+          const companyMap = {};
+          (cos || []).forEach(c => { companyMap[c.id] = c.name; });
+
+          const vehicles = data.map(v => ({ ...v, company_name: companyMap[v.company_id] || "Unknown" }));
+          setDbVehicles(vehicles);
+
+          // Auto-select vehicle if specified in URL
+          if (vehicleId) {
+            setSelectedVehicle(vehicleId);
+            setStep(1); // Skip to details step
+          }
+        } else {
+          setDbVehicles(MOCK_VEHICLES);
+        }
+      } else {
+        setDbVehicles(MOCK_VEHICLES);
+      }
+      setVehiclesLoaded(true);
+    }
+    loadVehicles();
+  }, []);
+
+  const vehicle = dbVehicles.find(v => v.id === selectedVehicle);
   const checklist = vehicle ? CHECKLIST_TEMPLATES[vehicle.type] || [] : [];
 
   // Initialize check statuses when vehicle changes
@@ -441,13 +480,80 @@ export default function WalkaroundCheckForm() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setSubmitted(true);
-      setStep(hasDefects ? 5 : 4);
-    }, 2000);
+    const refId = "WC-" + Math.random().toString(36).substr(2, 8).toUpperCase();
+    setReferenceId(refId);
+
+    if (isSupabaseReady() && vehicle) {
+      try {
+        // 1. Save walkaround check
+        const checkData = {
+          vehicle_id: vehicle.id,
+          company_id: vehicle.company_id,
+          vehicle_reg: vehicle.reg,
+          vehicle_type: vehicle.type,
+          driver_name: driverName,
+          result: vehicleSafe ? "pass" : "fail",
+          total_items: totalItems,
+          passed_items: checkedItems - failedItems.length,
+          failed_items: failedItems.length,
+          defects_reported: failedItems.length,
+          odometer: odometer || null,
+          reference_id: refId,
+        };
+
+        const { data: checkRow } = await supabase.from("walkaround_checks").insert(checkData).select().single();
+
+        // 2. Save individual check items
+        if (checkRow) {
+          const items = [];
+          checklist.forEach((cat, ci) => {
+            cat.items.forEach((itemLabel, ii) => {
+              const key = `${ci}-${ii}`;
+              const status = checkStatuses[key] || "pass";
+              const detail = defectDetails[key];
+              items.push({
+                check_id: checkRow.id,
+                category: cat.category,
+                item_label: itemLabel,
+                status,
+                defect_description: status === "fail" && detail ? detail.description : null,
+                defect_severity: status === "fail" && detail ? detail.severity : null,
+              });
+            });
+          });
+          await supabase.from("check_items").insert(items);
+        }
+
+        // 3. Auto-create defects for failed items
+        for (const item of failedItems) {
+          const detail = defectDetails[item.key];
+          if (detail && detail.description && detail.severity) {
+            await supabase.from("defects").insert({
+              vehicle_id: vehicle.id,
+              company_id: vehicle.company_id,
+              vehicle_reg: vehicle.reg,
+              vehicle_type: vehicle.type,
+              company_name: vehicle.company_name,
+              category: item.category,
+              description: detail.description,
+              severity: detail.severity,
+              status: "open",
+              reported_by: driverName,
+              reported_date: new Date().toISOString().split("T")[0],
+              check_id: refId,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Save error:", err);
+      }
+    }
+
+    setSubmitting(false);
+    setSubmitted(true);
+    setStep(hasDefects ? 5 : 4);
   };
 
   const declarationStep = hasDefects ? 4 : 3;
@@ -533,8 +639,8 @@ export default function WalkaroundCheckForm() {
                   fontSize: "18px",
                 }}>🏢</div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: "15px", color: "#0F172A" }}>{MAGIC_LINK_DATA.company.name}</div>
-                  <div style={{ fontSize: "12px", color: "#64748B" }}>{MAGIC_LINK_DATA.tenantName}</div>
+                  <div style={{ fontWeight: 700, fontSize: "15px", color: "#0F172A" }}>{vehicle?.company_name || "ComplyFleet"}</div>
+                  <div style={{ fontSize: "12px", color: "#64748B" }}>Daily Walkaround Check</div>
                 </div>
               </div>
               <div style={{
@@ -589,7 +695,7 @@ export default function WalkaroundCheckForm() {
                 Select vehicle *
               </span>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {MAGIC_LINK_DATA.vehicles.map(v => {
+                {dbVehicles.map(v => {
                   const icons = { HGV: "🚛", Van: "🚐", Trailer: "🔗" };
                   const isSelected = selectedVehicle === v.id;
                   return (
@@ -894,7 +1000,7 @@ export default function WalkaroundCheckForm() {
               background: "#EFF6FF", border: "1px solid #BFDBFE",
               fontSize: "12px", color: "#1E40AF", maxWidth: "360px", margin: "24px auto 0",
             }}>
-              📋 This record has been saved permanently and cannot be altered. Reference ID: <strong>WC-{Math.random().toString(36).substr(2, 8).toUpperCase()}</strong>
+              📋 This record has been saved permanently and cannot be altered. Reference ID: <strong>{referenceId}</strong>
             </div>
           </div>
         )}
