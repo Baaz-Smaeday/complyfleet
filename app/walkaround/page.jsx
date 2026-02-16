@@ -1,0 +1,966 @@
+"use client";
+import { useState, useEffect, useRef } from "react";
+
+// ============================================================
+// COMPLYFLEET — Driver Daily Walkaround Check (Mobile-First)
+// Accessed via secure magic link — no login required
+// ============================================================
+
+const CHECKLIST_TEMPLATES = {
+  HGV: [
+    { category: "Lights", icon: "💡", items: [
+      "Headlights (dipped beam)", "Headlights (main beam)", "Front indicators",
+      "Rear indicators", "Brake lights", "Reverse lights", "Fog lights (front)",
+      "Fog lights (rear)", "Side marker lights", "Number plate light"
+    ]},
+    { category: "Tyres & Wheels", icon: "🔘", items: [
+      "Nearside front tyre condition & tread", "Offside front tyre condition & tread",
+      "Nearside rear tyres condition & tread", "Offside rear tyres condition & tread",
+      "Tyre pressures appear normal", "Wheel nut indicators aligned", "No wheel damage or cracks"
+    ]},
+    { category: "Brakes", icon: "🛑", items: [
+      "Service brake operation", "Parking brake holds", "Air pressure builds correctly",
+      "No audible air leaks", "Brake lines — no damage or leaks"
+    ]},
+    { category: "Mirrors & Glass", icon: "🪞", items: [
+      "Nearside mirror — clean & secure", "Offside mirror — clean & secure",
+      "Wide-angle mirrors — clean & secure", "Front mirror / Fresnel lens",
+      "Windscreen — no cracks or damage", "All windows clean & clear"
+    ]},
+    { category: "Body & Security", icon: "🚛", items: [
+      "Cab condition — no damage", "Body panels — secure, no damage",
+      "Mudguards & spray suppression fitted", "Doors / shutters operate correctly",
+      "Load area secure & clean", "Number plates clean & legible"
+    ]},
+    { category: "Fluid Levels", icon: "🛢️", items: [
+      "Engine oil level", "Coolant level", "Windscreen washer fluid", "AdBlue level (if applicable)"
+    ]},
+    { category: "Safety Equipment", icon: "🧯", items: [
+      "Horn working", "Windscreen wipers working", "Seatbelt working",
+      "Fire extinguisher present & in date", "First aid kit present",
+      "Warning triangle / hi-vis vest"
+    ]},
+    { category: "Exhaust & Emissions", icon: "💨", items: [
+      "Exhaust — no excessive smoke", "Exhaust — securely mounted, no leaks"
+    ]},
+  ],
+  Van: [
+    { category: "Lights", icon: "💡", items: [
+      "Headlights (dipped beam)", "Headlights (main beam)", "Front indicators",
+      "Rear indicators", "Brake lights", "Reverse lights", "Fog lights (rear)", "Number plate light"
+    ]},
+    { category: "Tyres & Wheels", icon: "🔘", items: [
+      "Nearside front tyre condition & tread", "Offside front tyre condition & tread",
+      "Nearside rear tyre condition & tread", "Offside rear tyre condition & tread",
+      "Tyre pressures appear normal", "Wheel nuts secure"
+    ]},
+    { category: "Brakes", icon: "🛑", items: [
+      "Service brake operation", "Parking brake holds"
+    ]},
+    { category: "Mirrors & Glass", icon: "🪞", items: [
+      "Nearside mirror — clean & secure", "Offside mirror — clean & secure",
+      "Rear view mirror", "Windscreen — no cracks or damage"
+    ]},
+    { category: "Body & Security", icon: "🚐", items: [
+      "Body panels — no damage", "Doors operate correctly",
+      "Load area secure", "Number plates clean & legible"
+    ]},
+    { category: "Fluid Levels", icon: "🛢️", items: [
+      "Engine oil level", "Coolant level", "Windscreen washer fluid"
+    ]},
+    { category: "Safety Equipment", icon: "🧯", items: [
+      "Horn working", "Windscreen wipers working", "Seatbelt working"
+    ]},
+  ],
+  Trailer: [
+    { category: "Lights", icon: "💡", items: [
+      "Rear indicators", "Brake lights", "Side marker lights",
+      "Rear fog light", "Number plate light", "Reflectors present"
+    ]},
+    { category: "Tyres & Wheels", icon: "🔘", items: [
+      "Nearside tyres condition & tread", "Offside tyres condition & tread",
+      "Tyre pressures appear normal", "Wheel nut indicators aligned"
+    ]},
+    { category: "Brakes & Air", icon: "🛑", items: [
+      "Air line connections secure", "No audible air leaks",
+      "Parking brake / park shunt", "Brake lines condition"
+    ]},
+    { category: "Body & Security", icon: "🚛", items: [
+      "Body panels — secure", "Doors / curtains secure",
+      "Mudguards & spray suppression", "Landing gear condition",
+      "Number plates clean & legible"
+    ]},
+    { category: "Coupling", icon: "🔗", items: [
+      "Kingpin / coupling condition", "Coupling lock engaged",
+      "Suzie lines connected & secure"
+    ]},
+  ]
+};
+
+const SEVERITY_OPTIONS = [
+  { value: "minor", label: "Minor", desc: "Does not affect vehicle safety", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+  { value: "major", label: "Major", desc: "May affect vehicle safety", color: "#F97316", bg: "#FFF7ED", border: "#FED7AA" },
+  { value: "dangerous", label: "Dangerous", desc: "Immediate safety risk — DO NOT DRIVE", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
+];
+
+// --- Simulated magic link data ---
+const MAGIC_LINK_DATA = {
+  tenantName: "James Henderson — External TM",
+  company: { name: "Hargreaves Haulage Ltd", id: "c1" },
+  vehicles: [
+    { id: "v1", reg: "BD63 XYZ", type: "HGV" },
+    { id: "v2", reg: "KL19 ABC", type: "HGV" },
+    { id: "v3", reg: "MN20 DEF", type: "Van" },
+    { id: "v4", reg: "PQ21 GHI", type: "Trailer" },
+  ],
+  expires: "2026-02-17T06:00:00Z",
+};
+
+// --- Components ---
+
+function ProgressBar({ current, total }) {
+  const pct = ((current) / total) * 100;
+  return (
+    <div style={{ width: "100%", height: "4px", background: "#E2E8F0", borderRadius: "2px", overflow: "hidden" }}>
+      <div style={{
+        height: "100%", background: "linear-gradient(90deg, #2563EB, #3B82F6)",
+        borderRadius: "2px", width: `${pct}%`, transition: "width 0.4s ease",
+      }} />
+    </div>
+  );
+}
+
+function StepIndicator({ steps, current }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", padding: "12px 0" }}>
+      {steps.map((s, i) => (
+        <div key={i} style={{
+          width: i === current ? "24px" : "8px", height: "8px",
+          borderRadius: "4px", transition: "all 0.3s ease",
+          background: i < current ? "#2563EB" : i === current ? "#2563EB" : "#CBD5E1",
+          opacity: i <= current ? 1 : 0.5,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function CheckItem({ label, status, onToggle, index }) {
+  const configs = {
+    unchecked: { bg: "#FFFFFF", border: "#E2E8F0", icon: "", color: "#64748B" },
+    pass: { bg: "#F0FDF4", border: "#86EFAC", icon: "✓", color: "#16A34A" },
+    fail: { bg: "#FEF2F2", border: "#FCA5A5", icon: "✗", color: "#DC2626" },
+  };
+  const cfg = configs[status];
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: "12px",
+      padding: "14px 16px", borderRadius: "12px",
+      background: cfg.bg, border: `1.5px solid ${cfg.border}`,
+      transition: "all 0.2s ease",
+      animation: `slideIn 0.3s ease ${index * 0.03}s both`,
+    }}>
+      {/* Pass button */}
+      <button onClick={() => onToggle("pass")} style={{
+        width: "44px", height: "44px", borderRadius: "12px", border: "2px solid",
+        borderColor: status === "pass" ? "#16A34A" : "#D1D5DB",
+        background: status === "pass" ? "#16A34A" : "white",
+        color: status === "pass" ? "white" : "#D1D5DB",
+        fontSize: "20px", fontWeight: 700, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "all 0.15s ease", flexShrink: 0,
+      }}>✓</button>
+
+      {/* Label */}
+      <span style={{ flex: 1, fontSize: "14px", fontWeight: 500, color: "#1E293B", lineHeight: 1.4 }}>
+        {label}
+      </span>
+
+      {/* Fail button */}
+      <button onClick={() => onToggle("fail")} style={{
+        width: "44px", height: "44px", borderRadius: "12px", border: "2px solid",
+        borderColor: status === "fail" ? "#DC2626" : "#D1D5DB",
+        background: status === "fail" ? "#DC2626" : "white",
+        color: status === "fail" ? "white" : "#D1D5DB",
+        fontSize: "20px", fontWeight: 700, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "all 0.15s ease", flexShrink: 0,
+      }}>✗</button>
+    </div>
+  );
+}
+
+function CategorySection({ category, icon, items, statuses, onToggle, isOpen, onToggleOpen }) {
+  const total = items.length;
+  const done = items.filter((_, i) => statuses[i] !== "unchecked").length;
+  const fails = items.filter((_, i) => statuses[i] === "fail").length;
+  const allDone = done === total;
+
+  return (
+    <div style={{
+      borderRadius: "16px", overflow: "hidden",
+      border: `1.5px solid ${fails > 0 ? "#FECACA" : allDone ? "#86EFAC" : "#E2E8F0"}`,
+      background: "white", transition: "all 0.2s ease",
+    }}>
+      {/* Header */}
+      <button onClick={onToggleOpen} style={{
+        width: "100%", display: "flex", alignItems: "center", gap: "12px",
+        padding: "16px 18px", border: "none", cursor: "pointer",
+        background: fails > 0 ? "#FEF2F2" : allDone ? "#F0FDF4" : "#F8FAFC",
+        transition: "all 0.2s ease",
+      }}>
+        <span style={{ fontSize: "22px" }}>{icon}</span>
+        <div style={{ flex: 1, textAlign: "left" }}>
+          <div style={{ fontSize: "15px", fontWeight: 700, color: "#0F172A" }}>{category}</div>
+          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "2px" }}>
+            {done}/{total} checked
+            {fails > 0 && <span style={{ color: "#DC2626", fontWeight: 700 }}> • {fails} defect{fails > 1 ? "s" : ""}</span>}
+          </div>
+        </div>
+        {/* Progress ring */}
+        <div style={{ position: "relative", width: "36px", height: "36px", flexShrink: 0 }}>
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="15" fill="none" stroke="#E2E8F0" strokeWidth="3" />
+            <circle cx="18" cy="18" r="15" fill="none"
+              stroke={fails > 0 ? "#EF4444" : allDone ? "#10B981" : "#3B82F6"}
+              strokeWidth="3" strokeLinecap="round"
+              strokeDasharray={`${(done/total)*94.2} 94.2`}
+              transform="rotate(-90 18 18)"
+              style={{ transition: "stroke-dasharray 0.4s ease" }}
+            />
+          </svg>
+          {allDone && (
+            <span style={{
+              position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "14px", color: fails > 0 ? "#EF4444" : "#10B981",
+            }}>{fails > 0 ? "!" : "✓"}</span>
+          )}
+        </div>
+        <span style={{
+          fontSize: "16px", transform: isOpen ? "rotate(180deg)" : "rotate(0)",
+          transition: "transform 0.2s ease", color: "#94A3B8",
+        }}>▼</span>
+      </button>
+
+      {/* Items */}
+      {isOpen && (
+        <div style={{ padding: "8px 12px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+          {items.map((item, i) => (
+            <CheckItem
+              key={i} index={i} label={item} status={statuses[i]}
+              onToggle={(val) => onToggle(i, statuses[i] === val ? "unchecked" : val)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DefectForm({ item, onUpdate, index }) {
+  return (
+    <div style={{
+      padding: "18px", borderRadius: "14px",
+      background: "#FEF2F2", border: "1.5px solid #FECACA",
+      animation: `slideIn 0.3s ease ${index * 0.1}s both`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+        <span style={{ fontSize: "18px" }}>⚠️</span>
+        <span style={{ fontSize: "14px", fontWeight: 700, color: "#991B1B" }}>Defect: {item.label}</span>
+      </div>
+
+      {/* Description */}
+      <label style={{ display: "block", marginBottom: "12px" }}>
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "6px" }}>
+          Describe the defect *
+        </span>
+        <textarea
+          placeholder="What's wrong? Be specific..."
+          value={item.description || ""}
+          onChange={e => onUpdate({ ...item, description: e.target.value })}
+          rows={3}
+          style={{
+            width: "100%", padding: "12px 14px", borderRadius: "10px",
+            border: "1.5px solid #D1D5DB", fontSize: "14px", fontFamily: "inherit",
+            resize: "vertical", outline: "none", background: "white",
+          }}
+          onFocus={e => e.target.style.borderColor = "#3B82F6"}
+          onBlur={e => e.target.style.borderColor = "#D1D5DB"}
+        />
+      </label>
+
+      {/* Severity */}
+      <div style={{ marginBottom: "14px" }}>
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "8px" }}>
+          Severity *
+        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {SEVERITY_OPTIONS.map(opt => (
+            <button key={opt.value} onClick={() => onUpdate({ ...item, severity: opt.value })}
+              style={{
+                display: "flex", alignItems: "center", gap: "12px",
+                padding: "12px 14px", borderRadius: "10px", cursor: "pointer",
+                border: `2px solid ${item.severity === opt.value ? opt.color : "#E2E8F0"}`,
+                background: item.severity === opt.value ? opt.bg : "white",
+                transition: "all 0.15s ease", textAlign: "left", width: "100%",
+              }}>
+              <div style={{
+                width: "20px", height: "20px", borderRadius: "50%",
+                border: `2px solid ${item.severity === opt.value ? opt.color : "#D1D5DB"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: item.severity === opt.value ? opt.color : "white",
+                transition: "all 0.15s ease", flexShrink: 0,
+              }}>
+                {item.severity === opt.value && <span style={{ color: "white", fontSize: "11px", fontWeight: 700 }}>✓</span>}
+              </div>
+              <div>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: opt.color }}>{opt.label}</div>
+                <div style={{ fontSize: "11px", color: "#6B7280" }}>{opt.desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Photo */}
+      <div>
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "6px" }}>
+          Photo evidence (recommended)
+        </span>
+        {item.photo ? (
+          <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
+            <img src={item.photo} style={{ width: "100%", height: "160px", objectFit: "cover", borderRadius: "10px" }} />
+            <button onClick={() => onUpdate({ ...item, photo: null })} style={{
+              position: "absolute", top: "8px", right: "8px",
+              width: "28px", height: "28px", borderRadius: "50%",
+              background: "rgba(0,0,0,0.6)", color: "white", border: "none",
+              cursor: "pointer", fontSize: "14px",
+            }}>✕</button>
+          </div>
+        ) : (
+          <button onClick={() => {
+            // Simulate photo capture
+            onUpdate({ ...item, photo: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#F1F5F9"/><text x="200" y="100" text-anchor="middle" fill="#94A3B8" font-size="14" font-family="sans-serif">📷 Photo captured</text></svg>')}` });
+          }}
+          style={{
+            width: "100%", padding: "16px", borderRadius: "10px",
+            border: "2px dashed #CBD5E1", background: "white",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            cursor: "pointer", fontSize: "14px", color: "#64748B", fontWeight: 500,
+          }}>
+            <span style={{ fontSize: "20px" }}>📷</span>
+            Take Photo
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+
+export default function WalkaroundCheckForm() {
+  const [step, setStep] = useState(0);
+  // 0 = Welcome, 1 = Driver + Vehicle, 2 = Checklist, 3 = Defects (if any), 4 = Declaration, 5 = Success
+
+  const [driverName, setDriverName] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [odometer, setOdometer] = useState("");
+  const [openCategories, setOpenCategories] = useState({});
+  const [checkStatuses, setCheckStatuses] = useState({});
+  const [defectDetails, setDefectDetails] = useState({});
+  const [vehicleSafe, setVehicleSafe] = useState(null);
+  const [declaration, setDeclaration] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const topRef = useRef(null);
+
+  const vehicle = MAGIC_LINK_DATA.vehicles.find(v => v.id === selectedVehicle);
+  const checklist = vehicle ? CHECKLIST_TEMPLATES[vehicle.type] || [] : [];
+
+  // Initialize check statuses when vehicle changes
+  useEffect(() => {
+    if (vehicle) {
+      const template = CHECKLIST_TEMPLATES[vehicle.type] || [];
+      const initial = {};
+      template.forEach((cat, ci) => {
+        cat.items.forEach((_, ii) => {
+          initial[`${ci}-${ii}`] = "unchecked";
+        });
+      });
+      setCheckStatuses(initial);
+      setOpenCategories({ 0: true });
+      setDefectDetails({});
+    }
+  }, [selectedVehicle]);
+
+  // Scroll to top on step change
+  useEffect(() => {
+    if (topRef.current) topRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [step]);
+
+  const totalItems = checklist.reduce((s, c) => s + c.items.length, 0);
+  const checkedItems = Object.values(checkStatuses).filter(v => v !== "unchecked").length;
+  const failedItems = Object.entries(checkStatuses)
+    .filter(([_, v]) => v === "fail")
+    .map(([key]) => {
+      const [ci, ii] = key.split("-").map(Number);
+      return { key, label: checklist[ci]?.items[ii], category: checklist[ci]?.category };
+    });
+  const hasDefects = failedItems.length > 0;
+  const allChecked = totalItems > 0 && checkedItems === totalItems;
+
+  const allDefectsComplete = failedItems.every(item => {
+    const d = defectDetails[item.key];
+    return d && d.description && d.severity;
+  });
+
+  const steps = hasDefects
+    ? ["Welcome", "Details", "Checklist", "Defects", "Declaration", "Done"]
+    : ["Welcome", "Details", "Checklist", "Declaration", "Done"];
+
+  const canProceed = () => {
+    if (step === 0) return true;
+    if (step === 1) return driverName.trim() && selectedVehicle;
+    if (step === 2) return allChecked;
+    if (hasDefects && step === 3) return allDefectsComplete;
+    if ((!hasDefects && step === 3) || (hasDefects && step === 4)) return vehicleSafe !== null && declaration;
+    return false;
+  };
+
+  const handleNext = () => {
+    if (!canProceed()) return;
+    if (step === 2 && !hasDefects) {
+      // Skip defects step
+      setStep(hasDefects ? 3 : 3);
+    } else {
+      setStep(step + 1);
+    }
+  };
+
+  const handleSubmit = () => {
+    setSubmitting(true);
+    setTimeout(() => {
+      setSubmitting(false);
+      setSubmitted(true);
+      setStep(hasDefects ? 5 : 4);
+    }, 2000);
+  };
+
+  const declarationStep = hasDefects ? 4 : 3;
+  const successStep = hasDefects ? 5 : 4;
+
+  const now = new Date();
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#F1F5F9",
+      fontFamily: "'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes checkmark { 0% { transform: scale(0); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #3B82F6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+      `}</style>
+
+      <div ref={topRef} />
+
+      {/* Header */}
+      <header style={{
+        background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)",
+        padding: "16px 20px", position: "sticky", top: 0, zIndex: 50,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{
+              width: "32px", height: "32px", borderRadius: "8px",
+              background: "linear-gradient(135deg, #3B82F6, #2563EB)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px",
+            }}>🚛</div>
+            <span style={{ color: "white", fontWeight: 800, fontSize: "16px" }}>
+              Comply<span style={{ color: "#60A5FA" }}>Fleet</span>
+            </span>
+          </div>
+          <span style={{ color: "#94A3B8", fontSize: "11px", fontWeight: 500 }}>Daily Walkaround Check</span>
+        </div>
+        {step > 0 && step < successStep && (
+          <div style={{ marginTop: "12px" }}>
+            <ProgressBar current={step} total={steps.length - 2} />
+            <StepIndicator steps={steps.slice(0, -1)} current={step} />
+          </div>
+        )}
+      </header>
+
+      {/* Content */}
+      <main style={{ maxWidth: "520px", margin: "0 auto", padding: "20px 16px 120px" }}>
+
+        {/* ========== STEP 0: Welcome ========== */}
+        {step === 0 && (
+          <div style={{ animation: "slideIn 0.4s ease", textAlign: "center", padding: "20px 0" }}>
+            <div style={{
+              width: "80px", height: "80px", borderRadius: "50%", margin: "0 auto 20px",
+              background: "linear-gradient(135deg, #2563EB, #3B82F6)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px",
+              boxShadow: "0 12px 32px rgba(37,99,235,0.3)",
+            }}>🔍</div>
+            <h1 style={{ fontSize: "24px", fontWeight: 800, color: "#0F172A", marginBottom: "8px" }}>
+              Daily Walkaround Check
+            </h1>
+            <p style={{ color: "#64748B", fontSize: "14px", lineHeight: 1.6, marginBottom: "24px", padding: "0 8px" }}>
+              Complete your vehicle safety inspection before starting your journey. This takes about 5–10 minutes.
+            </p>
+
+            <div style={{
+              background: "white", borderRadius: "16px", padding: "20px",
+              border: "1px solid #E2E8F0", textAlign: "left", marginBottom: "16px",
+            }}>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>
+                Operator Details
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <div style={{
+                  width: "40px", height: "40px", borderRadius: "10px",
+                  background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "18px",
+                }}>🏢</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "15px", color: "#0F172A" }}>{MAGIC_LINK_DATA.company.name}</div>
+                  <div style={{ fontSize: "12px", color: "#64748B" }}>{MAGIC_LINK_DATA.tenantName}</div>
+                </div>
+              </div>
+              <div style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                padding: "10px 12px", borderRadius: "8px", background: "#F8FAFC",
+                fontSize: "12px", color: "#64748B",
+              }}>
+                <span>🕐</span>
+                <span>{now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} at {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+            </div>
+
+            <div style={{
+              background: "#FFFBEB", borderRadius: "12px", padding: "14px 16px",
+              border: "1px solid #FDE68A", display: "flex", gap: "10px", textAlign: "left",
+            }}>
+              <span style={{ fontSize: "16px" }}>⚡</span>
+              <div style={{ fontSize: "12px", color: "#92400E", lineHeight: 1.5 }}>
+                <strong>Legal requirement:</strong> Under UK law, drivers must carry out a walkaround check before every journey. All records are stored permanently for DVSA audit.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========== STEP 1: Driver + Vehicle ========== */}
+        {step === 1 && (
+          <div style={{ animation: "slideIn 0.4s ease" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", marginBottom: "4px" }}>Your Details</h2>
+            <p style={{ fontSize: "13px", color: "#64748B", marginBottom: "24px" }}>Select your vehicle and enter your name.</p>
+
+            {/* Driver name */}
+            <label style={{ display: "block", marginBottom: "20px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#374151", display: "block", marginBottom: "8px" }}>
+                Driver name *
+              </span>
+              <input
+                type="text"
+                placeholder="Enter your full name"
+                value={driverName}
+                onChange={e => setDriverName(e.target.value)}
+                style={{
+                  width: "100%", padding: "14px 16px", borderRadius: "12px",
+                  border: "1.5px solid #D1D5DB", fontSize: "16px", fontFamily: "inherit",
+                  background: "white",
+                }}
+              />
+            </label>
+
+            {/* Vehicle select */}
+            <div style={{ marginBottom: "20px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#374151", display: "block", marginBottom: "10px" }}>
+                Select vehicle *
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {MAGIC_LINK_DATA.vehicles.map(v => {
+                  const icons = { HGV: "🚛", Van: "🚐", Trailer: "🔗" };
+                  const isSelected = selectedVehicle === v.id;
+                  return (
+                    <button key={v.id} onClick={() => setSelectedVehicle(v.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "14px",
+                        padding: "16px 18px", borderRadius: "14px",
+                        border: `2px solid ${isSelected ? "#2563EB" : "#E2E8F0"}`,
+                        background: isSelected ? "#EFF6FF" : "white",
+                        cursor: "pointer", transition: "all 0.15s ease",
+                        textAlign: "left", width: "100%",
+                      }}>
+                      <span style={{ fontSize: "26px" }}>{icons[v.type]}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: "17px", color: "#0F172A", fontFamily: "monospace" }}>{v.reg}</div>
+                        <div style={{ fontSize: "12px", color: "#64748B" }}>{v.type}</div>
+                      </div>
+                      <div style={{
+                        width: "24px", height: "24px", borderRadius: "50%",
+                        border: `2px solid ${isSelected ? "#2563EB" : "#D1D5DB"}`,
+                        background: isSelected ? "#2563EB" : "white",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "all 0.15s ease",
+                      }}>
+                        {isSelected && <span style={{ color: "white", fontSize: "12px", fontWeight: 700 }}>✓</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Odometer */}
+            <label style={{ display: "block" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#374151", display: "block", marginBottom: "8px" }}>
+                Odometer reading (optional)
+              </span>
+              <input
+                type="number"
+                placeholder="e.g. 125430"
+                value={odometer}
+                onChange={e => setOdometer(e.target.value)}
+                style={{
+                  width: "100%", padding: "14px 16px", borderRadius: "12px",
+                  border: "1.5px solid #D1D5DB", fontSize: "16px", fontFamily: "inherit",
+                  background: "white",
+                }}
+              />
+            </label>
+          </div>
+        )}
+
+        {/* ========== STEP 2: Checklist ========== */}
+        {step === 2 && (
+          <div style={{ animation: "slideIn 0.4s ease" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
+              <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A" }}>Vehicle Inspection</h2>
+              <span style={{
+                padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 700,
+                background: allChecked ? "#D1FAE5" : "#EFF6FF",
+                color: allChecked ? "#065F46" : "#1E40AF",
+              }}>{checkedItems}/{totalItems}</span>
+            </div>
+            <p style={{ fontSize: "13px", color: "#64748B", marginBottom: "6px" }}>
+              {vehicle?.reg} ({vehicle?.type}) — Tap <span style={{ color: "#16A34A", fontWeight: 700 }}>✓</span> for pass or <span style={{ color: "#DC2626", fontWeight: 700 }}>✗</span> for defect
+            </p>
+
+            {/* Pass All button */}
+            <button onClick={() => {
+              const newStatuses = { ...checkStatuses };
+              Object.keys(newStatuses).forEach(k => { if (newStatuses[k] === "unchecked") newStatuses[k] = "pass"; });
+              setCheckStatuses(newStatuses);
+            }} style={{
+              width: "100%", padding: "12px", borderRadius: "10px", marginBottom: "16px",
+              border: "1.5px solid #86EFAC", background: "#F0FDF4",
+              cursor: "pointer", fontSize: "13px", fontWeight: 700, color: "#16A34A",
+              display: allChecked ? "none" : "block",
+            }}>
+              ✓ Mark all remaining as PASS
+            </button>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {checklist.map((cat, ci) => {
+                const statuses = cat.items.map((_, ii) => checkStatuses[`${ci}-${ii}`] || "unchecked");
+                return (
+                  <CategorySection
+                    key={ci}
+                    category={cat.category}
+                    icon={cat.icon}
+                    items={cat.items}
+                    statuses={statuses}
+                    onToggle={(ii, val) => setCheckStatuses(prev => ({ ...prev, [`${ci}-${ii}`]: val }))}
+                    isOpen={openCategories[ci] || false}
+                    onToggleOpen={() => setOpenCategories(prev => ({ ...prev, [ci]: !prev[ci] }))}
+                  />
+                );
+              })}
+            </div>
+
+            {failedItems.length > 0 && (
+              <div style={{
+                marginTop: "16px", padding: "14px 16px", borderRadius: "12px",
+                background: "#FEF2F2", border: "1px solid #FECACA",
+                display: "flex", alignItems: "center", gap: "10px",
+              }}>
+                <span style={{ fontSize: "18px" }}>⚠️</span>
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#991B1B" }}>
+                    {failedItems.length} defect{failedItems.length > 1 ? "s" : ""} found
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#B91C1C" }}>
+                    You'll provide details on the next step
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========== STEP 3: Defects (if any) ========== */}
+        {step === 3 && hasDefects && (
+          <div style={{ animation: "slideIn 0.4s ease" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#DC2626", marginBottom: "4px" }}>
+              ⚠️ Defect Details
+            </h2>
+            <p style={{ fontSize: "13px", color: "#64748B", marginBottom: "20px" }}>
+              Please describe each defect found and rate its severity.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {failedItems.map((item, idx) => (
+                <DefectForm
+                  key={item.key}
+                  item={{ ...item, ...(defectDetails[item.key] || {}) }}
+                  onUpdate={(updated) => setDefectDetails(prev => ({ ...prev, [item.key]: updated }))}
+                  index={idx}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ========== Declaration Step ========== */}
+        {step === declarationStep && (
+          <div style={{ animation: "slideIn 0.4s ease" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", marginBottom: "4px" }}>Driver Declaration</h2>
+            <p style={{ fontSize: "13px", color: "#64748B", marginBottom: "24px" }}>
+              Please confirm the following before submitting.
+            </p>
+
+            {/* Summary */}
+            <div style={{
+              background: "white", borderRadius: "14px", padding: "18px", marginBottom: "20px",
+              border: "1px solid #E2E8F0",
+            }}>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "14px" }}>
+                Check Summary
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div style={{ padding: "10px", borderRadius: "8px", background: "#F8FAFC" }}>
+                  <div style={{ fontSize: "11px", color: "#6B7280" }}>Driver</div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A" }}>{driverName}</div>
+                </div>
+                <div style={{ padding: "10px", borderRadius: "8px", background: "#F8FAFC" }}>
+                  <div style={{ fontSize: "11px", color: "#6B7280" }}>Vehicle</div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>{vehicle?.reg}</div>
+                </div>
+                <div style={{ padding: "10px", borderRadius: "8px", background: "#F8FAFC" }}>
+                  <div style={{ fontSize: "11px", color: "#6B7280" }}>Items checked</div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#16A34A" }}>{checkedItems} ✓</div>
+                </div>
+                <div style={{ padding: "10px", borderRadius: "8px", background: hasDefects ? "#FEF2F2" : "#F0FDF4" }}>
+                  <div style={{ fontSize: "11px", color: "#6B7280" }}>Defects</div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: hasDefects ? "#DC2626" : "#16A34A" }}>
+                    {failedItems.length} {hasDefects ? "⚠️" : "✓"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vehicle safe to use? */}
+            <div style={{ marginBottom: "20px" }}>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", display: "block", marginBottom: "10px" }}>
+                Is this vehicle safe to drive? *
+              </span>
+              <div style={{ display: "flex", gap: "10px" }}>
+                {[
+                  { val: true, label: "Yes — Safe to Drive", icon: "✓", color: "#16A34A", bg: "#F0FDF4", border: "#86EFAC" },
+                  { val: false, label: "No — NOT Safe", icon: "✗", color: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
+                ].map(opt => (
+                  <button key={String(opt.val)} onClick={() => setVehicleSafe(opt.val)} style={{
+                    flex: 1, padding: "16px 14px", borderRadius: "14px",
+                    border: `2px solid ${vehicleSafe === opt.val ? opt.color : "#E2E8F0"}`,
+                    background: vehicleSafe === opt.val ? opt.bg : "white",
+                    cursor: "pointer", transition: "all 0.15s ease", textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: "28px", marginBottom: "6px" }}>{vehicleSafe === opt.val ? (opt.val ? "🟢" : "🔴") : "⚪"}</div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: vehicleSafe === opt.val ? opt.color : "#6B7280" }}>{opt.label}</div>
+                  </button>
+                ))}
+              </div>
+              {vehicleSafe === false && (
+                <div style={{
+                  marginTop: "10px", padding: "12px 14px", borderRadius: "10px",
+                  background: "#FEF2F2", border: "1px solid #FECACA",
+                  fontSize: "12px", color: "#991B1B", lineHeight: 1.5,
+                }}>
+                  <strong>⚠️ Important:</strong> This vehicle must NOT be used until all dangerous/major defects are rectified. Your Transport Manager will be notified immediately.
+                </div>
+              )}
+            </div>
+
+            {/* Declaration checkbox */}
+            <button onClick={() => setDeclaration(!declaration)} style={{
+              width: "100%", display: "flex", alignItems: "flex-start", gap: "12px",
+              padding: "16px 18px", borderRadius: "14px",
+              border: `2px solid ${declaration ? "#2563EB" : "#E2E8F0"}`,
+              background: declaration ? "#EFF6FF" : "white",
+              cursor: "pointer", transition: "all 0.15s ease", textAlign: "left",
+            }}>
+              <div style={{
+                width: "24px", height: "24px", borderRadius: "6px", flexShrink: 0, marginTop: "2px",
+                border: `2px solid ${declaration ? "#2563EB" : "#D1D5DB"}`,
+                background: declaration ? "#2563EB" : "white",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.15s ease",
+              }}>
+                {declaration && <span style={{ color: "white", fontSize: "13px", fontWeight: 700 }}>✓</span>}
+              </div>
+              <div>
+                <div style={{ fontSize: "14px", fontWeight: 600, color: "#0F172A", marginBottom: "4px" }}>
+                  Driver Declaration *
+                </div>
+                <div style={{ fontSize: "12px", color: "#64748B", lineHeight: 1.5 }}>
+                  I confirm that I have carried out a thorough walkaround inspection of this vehicle, and the information provided above is accurate and complete to the best of my knowledge.
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* ========== Success ========== */}
+        {step === successStep && (
+          <div style={{ animation: "slideIn 0.5s ease", textAlign: "center", padding: "40px 0" }}>
+            <div style={{
+              width: "90px", height: "90px", borderRadius: "50%", margin: "0 auto 24px",
+              background: vehicleSafe ? "linear-gradient(135deg, #10B981, #059669)" : "linear-gradient(135deg, #EF4444, #DC2626)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: "40px",
+              boxShadow: `0 16px 40px ${vehicleSafe ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
+              animation: "checkmark 0.5s ease",
+            }}>
+              {vehicleSafe ? "✓" : "⚠️"}
+            </div>
+
+            <h1 style={{ fontSize: "24px", fontWeight: 800, color: "#0F172A", marginBottom: "8px" }}>
+              {vehicleSafe ? "Check Complete!" : "Check Submitted — Vehicle Unsafe"}
+            </h1>
+            <p style={{ color: "#64748B", fontSize: "14px", marginBottom: "28px" }}>
+              {vehicleSafe
+                ? "Your walkaround check has been recorded successfully. Drive safely!"
+                : "Your check has been recorded. Your Transport Manager has been notified of the defects."}
+            </p>
+
+            <div style={{
+              background: "white", borderRadius: "16px", padding: "20px",
+              border: "1px solid #E2E8F0", textAlign: "left", maxWidth: "360px", margin: "0 auto",
+            }}>
+              <div style={{ display: "grid", gap: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "13px", color: "#6B7280" }}>Driver</span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A" }}>{driverName}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "13px", color: "#6B7280" }}>Vehicle</span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>{vehicle?.reg}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "13px", color: "#6B7280" }}>Date & Time</span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A" }}>
+                    {now.toLocaleDateString("en-GB")} {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "13px", color: "#6B7280" }}>Result</span>
+                  <span style={{
+                    fontSize: "12px", fontWeight: 700, padding: "2px 10px", borderRadius: "20px",
+                    background: vehicleSafe ? "#D1FAE5" : "#FEE2E2",
+                    color: vehicleSafe ? "#065F46" : "#991B1B",
+                  }}>{vehicleSafe ? "SAFE TO DRIVE" : "NOT SAFE"}</span>
+                </div>
+                {hasDefects && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "13px", color: "#6B7280" }}>Defects reported</span>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#DC2626" }}>{failedItems.length}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{
+              marginTop: "24px", padding: "14px 16px", borderRadius: "12px",
+              background: "#EFF6FF", border: "1px solid #BFDBFE",
+              fontSize: "12px", color: "#1E40AF", maxWidth: "360px", margin: "24px auto 0",
+            }}>
+              📋 This record has been saved permanently and cannot be altered. Reference ID: <strong>WC-{Math.random().toString(36).substr(2, 8).toUpperCase()}</strong>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Bottom Action Bar */}
+      {step < successStep && (
+        <div style={{
+          position: "fixed", bottom: 0, left: 0, right: 0,
+          background: "white", borderTop: "1px solid #E2E8F0",
+          padding: "14px 16px", paddingBottom: "max(14px, env(safe-area-inset-bottom))",
+          boxShadow: "0 -4px 16px rgba(0,0,0,0.06)",
+          zIndex: 50,
+        }}>
+          <div style={{ maxWidth: "520px", margin: "0 auto", display: "flex", gap: "10px" }}>
+            {step > 0 && step < declarationStep + 1 && (
+              <button onClick={() => {
+                if (step === 3 && !hasDefects) setStep(2);
+                else setStep(step - 1);
+              }} style={{
+                padding: "14px 20px", borderRadius: "12px",
+                border: "1.5px solid #E2E8F0", background: "white",
+                fontSize: "14px", fontWeight: 600, color: "#6B7280",
+                cursor: "pointer",
+              }}>← Back</button>
+            )}
+
+            {step < declarationStep ? (
+              <button onClick={handleNext} disabled={!canProceed()} style={{
+                flex: 1, padding: "16px 24px", borderRadius: "14px", border: "none",
+                background: canProceed()
+                  ? "linear-gradient(135deg, #2563EB, #1D4ED8)"
+                  : "#E2E8F0",
+                color: canProceed() ? "white" : "#94A3B8",
+                fontSize: "16px", fontWeight: 700, cursor: canProceed() ? "pointer" : "not-allowed",
+                transition: "all 0.2s ease",
+                boxShadow: canProceed() ? "0 4px 16px rgba(37,99,235,0.3)" : "none",
+              }}>
+                {step === 0 ? "Start Check →" : "Continue →"}
+              </button>
+            ) : step === declarationStep && (
+              <button onClick={handleSubmit} disabled={!canProceed() || submitting} style={{
+                flex: 1, padding: "16px 24px", borderRadius: "14px", border: "none",
+                background: canProceed() && !submitting
+                  ? vehicleSafe ? "linear-gradient(135deg, #059669, #047857)" : "linear-gradient(135deg, #DC2626, #B91C1C)"
+                  : "#E2E8F0",
+                color: canProceed() ? "white" : "#94A3B8",
+                fontSize: "16px", fontWeight: 700,
+                cursor: canProceed() && !submitting ? "pointer" : "not-allowed",
+                transition: "all 0.2s ease",
+                boxShadow: canProceed() ? `0 4px 16px ${vehicleSafe ? "rgba(5,150,105,0.3)" : "rgba(220,38,38,0.3)"}` : "none",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+              }}>
+                {submitting ? (
+                  <>
+                    <span style={{ display: "inline-block", width: "18px", height: "18px", border: "2px solid white", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    Submitting...
+                  </>
+                ) : (
+                  <>Submit Check ✓</>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
