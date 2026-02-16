@@ -335,19 +335,24 @@ function DefectForm({ item, onUpdate, index }) {
             }}>✕</button>
           </div>
         ) : (
-          <button onClick={() => {
-            // Simulate photo capture
-            onUpdate({ ...item, photo: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#F1F5F9"/><text x="200" y="100" text-anchor="middle" fill="#94A3B8" font-size="14" font-family="sans-serif">📷 Photo captured</text></svg>')}` });
-          }}
-          style={{
+          <label style={{
             width: "100%", padding: "16px", borderRadius: "10px",
             border: "2px dashed #CBD5E1", background: "white",
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             cursor: "pointer", fontSize: "14px", color: "#64748B", fontWeight: 500,
           }}>
+            <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (ev) => { onUpdate({ ...item, photo: ev.target.result }); };
+                  reader.readAsDataURL(file);
+                }
+              }} />
             <span style={{ fontSize: "20px" }}>📷</span>
             Take Photo
-          </button>
+          </label>
         )}
       </div>
     </div>
@@ -382,17 +387,21 @@ export default function WalkaroundCheckForm() {
   useEffect(() => {
     async function loadVehicles() {
       if (isSupabaseReady()) {
-        // Check URL params for pre-selected vehicle
         const params = new URLSearchParams(window.location.search);
         const vehicleId = params.get("vehicle");
         const companyId = params.get("company");
 
         let query = supabase.from("vehicles").select("id, reg, type, company_id, make, model").is("archived_at", null);
-        if (companyId) query = query.eq("company_id", companyId);
+        
+        // If specific vehicle from QR code, only load that vehicle
+        if (vehicleId) {
+          query = query.eq("id", vehicleId);
+        } else if (companyId) {
+          query = query.eq("company_id", companyId);
+        }
         const { data } = await query.order("reg");
 
         if (data && data.length > 0) {
-          // Load company names
           const companyIds = [...new Set(data.map(v => v.company_id))];
           const { data: cos } = await supabase.from("companies").select("id, name").in("id", companyIds);
           const companyMap = {};
@@ -401,10 +410,9 @@ export default function WalkaroundCheckForm() {
           const vehicles = data.map(v => ({ ...v, company_name: companyMap[v.company_id] || "Unknown" }));
           setDbVehicles(vehicles);
 
-          // Auto-select vehicle if specified in URL
-          if (vehicleId) {
-            setSelectedVehicle(vehicleId);
-            setStep(1); // Skip to details step
+          // Auto-select if only one vehicle (from QR scan)
+          if (vehicleId && vehicles.length === 1) {
+            setSelectedVehicle(vehicles[0].id);
           }
         } else {
           setDbVehicles(MOCK_VEHICLES);
@@ -1001,6 +1009,69 @@ export default function WalkaroundCheckForm() {
               fontSize: "12px", color: "#1E40AF", maxWidth: "360px", margin: "24px auto 0",
             }}>
               📋 This record has been saved permanently and cannot be altered. Reference ID: <strong>{referenceId}</strong>
+            </div>
+
+            {/* Download / Print Report */}
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "20px", flexWrap: "wrap" }}>
+              <button onClick={() => {
+                const allItems = [];
+                checklist.forEach((cat, ci) => {
+                  cat.items.forEach((itemLabel, ii) => {
+                    const key = `${ci}-${ii}`;
+                    const status = checkStatuses[key] || "pass";
+                    const detail = defectDetails[key];
+                    allItems.push({ category: cat.category, item: itemLabel, status, defect: detail?.description || "", severity: detail?.severity || "" });
+                  });
+                });
+                const win = window.open("", "_blank");
+                win.document.write(`<!DOCTYPE html><html><head><title>Walkaround Check - ${vehicle?.reg}</title><style>
+                  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+                  body { font-family: 'DM Sans', sans-serif; margin: 0; padding: 30px; color: #0F172A; max-width: 800px; margin: 0 auto; }
+                  .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0F172A; padding-bottom: 16px; margin-bottom: 20px; }
+                  .logo { font-size: 20px; font-weight: 800; } .logo span { color: #2563EB; }
+                  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+                  .info-item { padding: 8px 12px; background: #F8FAFC; border-radius: 6px; }
+                  .info-label { font-size: 10px; color: #6B7280; text-transform: uppercase; font-weight: 600; }
+                  .info-value { font-size: 14px; font-weight: 700; margin-top: 2px; }
+                  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+                  th { background: #0F172A; color: white; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; }
+                  td { padding: 8px 12px; border-bottom: 1px solid #E5E7EB; font-size: 12px; }
+                  tr.fail { background: #FEF2F2; }
+                  .result { text-align: center; margin: 20px 0; padding: 16px; border-radius: 10px; font-weight: 800; font-size: 18px; }
+                  .pass { background: #D1FAE5; color: #065F46; } .fail-result { background: #FEE2E2; color: #991B1B; }
+                  .footer { margin-top: 30px; padding-top: 16px; border-top: 2px solid #E5E7EB; font-size: 10px; color: #6B7280; text-align: center; }
+                  .sig { margin-top: 30px; display: flex; justify-content: space-between; }
+                  .sig-box { width: 45%; border-top: 2px solid #0F172A; padding-top: 8px; font-size: 11px; color: #6B7280; }
+                  @media print { body { padding: 20px; } }
+                </style></head><body>
+                <div class="header"><div><div class="logo">🚛 Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280;margin-top:4px">DVSA Walkaround Check Record</div></div>
+                <div style="text-align:right"><div style="font-size:24px;font-weight:800;font-family:monospace">${vehicle?.reg || ""}</div><div style="font-size:12px;color:#6B7280">${vehicle?.type || ""} · ${vehicle?.make || ""} ${vehicle?.model || ""}</div></div></div>
+                <div class="info-grid">
+                  <div class="info-item"><div class="info-label">Driver Name</div><div class="info-value">${driverName}</div></div>
+                  <div class="info-item"><div class="info-label">Date & Time</div><div class="info-value">${now.toLocaleDateString("en-GB")} ${now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</div></div>
+                  <div class="info-item"><div class="info-label">Reference ID</div><div class="info-value">${referenceId}</div></div>
+                  <div class="info-item"><div class="info-label">Odometer</div><div class="info-value">${odometer || "Not recorded"}</div></div>
+                  <div class="info-item"><div class="info-label">Company</div><div class="info-value">${vehicle?.company_name || ""}</div></div>
+                  <div class="info-item"><div class="info-label">Items Checked</div><div class="info-value">${totalItems} total · ${failedItems.length} failed</div></div>
+                </div>
+                <div class="result ${vehicleSafe ? "pass" : "fail-result"}">${vehicleSafe ? "✅ VEHICLE SAFE TO DRIVE" : "⚠️ VEHICLE NOT SAFE — DEFECTS REPORTED"}</div>
+                <table><thead><tr><th>Category</th><th>Item</th><th>Result</th><th>Defect</th><th>Severity</th></tr></thead><tbody>
+                ${allItems.map(i => `<tr class="${i.status === "fail" ? "fail" : ""}"><td>${i.category}</td><td>${i.item}</td><td style="font-weight:700;color:${i.status === "pass" ? "#059669" : "#DC2626"}">${i.status === "pass" ? "✓ PASS" : "✗ FAIL"}</td><td>${i.defect}</td><td style="font-weight:700;color:${i.severity === "dangerous" ? "#DC2626" : i.severity === "major" ? "#F97316" : "#F59E0B"}">${i.severity ? i.severity.toUpperCase() : ""}</td></tr>`).join("")}
+                </tbody></table>
+                <div class="sig"><div class="sig-box">Driver Signature: ${driverName}</div><div class="sig-box">Date: ${now.toLocaleDateString("en-GB")}</div></div>
+                <div class="footer">Generated by ComplyFleet · complyfleet.vercel.app · This record is permanently stored and cannot be altered</div>
+                </body></html>`);
+                win.document.close();
+                setTimeout(() => win.print(), 500);
+              }} style={{
+                padding: "12px 24px", borderRadius: "12px", border: "none",
+                background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white",
+                fontSize: "13px", fontWeight: 700, cursor: "pointer",
+              }}>🖨️ Print / Download Report</button>
+              <button onClick={() => { window.location.href = "/walkaround"; }} style={{
+                padding: "12px 24px", borderRadius: "12px", border: "1px solid #E5E7EB",
+                background: "#FFFFFF", fontSize: "13px", fontWeight: 700, color: "#374151", cursor: "pointer",
+              }}>🔄 New Check</button>
             </div>
           </div>
         )}

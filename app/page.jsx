@@ -66,12 +66,21 @@ const SCREENS = [
     role: "Platform Owner",
     color: "#EF4444",
   },
+  {
+    title: "Company Portal",
+    desc: "Operator login — fleet management, checks, defects for your company",
+    href: "/portal",
+    icon: "\u{1F465}",
+    role: "Operator",
+    color: "#7C3AED",
+  },
 ];
 
 const ROLE_COLORS = {
   "Transport Manager": { bg: "#EFF6FF", text: "#2563EB" },
   "Driver": { bg: "#ECFDF5", text: "#059669" },
   "Platform Owner": { bg: "#FEF2F2", text: "#DC2626" },
+  "Operator": { bg: "#F5F3FF", text: "#7C3AED" },
 };
 
 export default function HomePage() {
