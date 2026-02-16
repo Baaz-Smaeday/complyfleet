@@ -1,15 +1,11 @@
 "use client";
-import { useState } from "react";
-
-// ============================================================
-// COMPLYFLEET — Company Detail Page
-// Full operator profile: fleet, contacts, compliance, checks
-// ============================================================
+import { useState, useEffect } from "react";
+import { supabase, isSupabaseReady } from "../../lib/supabase";
+import { ConfirmDialog, Toast } from "../../components/ConfirmDialog";
 
 const TODAY = new Date("2026-02-16");
-
 function getDaysUntil(d) { if (!d) return null; return Math.floor((new Date(d) - TODAY) / 86400000); }
-function formatDate(d) { if (!d) return "—"; return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
+function formatDate(d) { if (!d) return "\u2014"; return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
 function getRisk(days) { if (days === null) return "green"; if (days < 0) return "high"; if (days <= 7) return "medium"; if (days <= 30) return "low"; return "green"; }
 
 const RISK = {
@@ -18,542 +14,398 @@ const RISK = {
   low: { bg: "#EFF6FF", border: "#BFDBFE", text: "#2563EB", dot: "#3B82F6", label: "LOW" },
   green: { bg: "#ECFDF5", border: "#A7F3D0", text: "#059669", dot: "#10B981", label: "OK" },
 };
-const TYPES = { HGV: "🚛", Van: "🚐", Trailer: "🔗" };
+const TYPES = { HGV: "\u{1F69B}", Van: "\u{1F690}", Trailer: "\u{1F517}" };
 
-const COMPANIES = [
-  {
-    id: "c1", name: "Hargreaves Haulage Ltd", oLicence: "OB1234567",
-    operatingCentre: "Unit 4, Leeds Industrial Estate, Pontefract Lane, Leeds, LS9 8AB",
-    address: "Hargreaves House, 12 Commercial Road, Leeds, LS1 4AP",
-    phone: "0113 496 2100", email: "office@hargreaves-haulage.co.uk",
-    authorisedVehicles: 8, authorisedTrailers: 4,
-    licenceStatus: "Valid", licenceExpiry: "2027-08-15",
-    contacts: [
-      { id: "ct1", name: "Ian Hargreaves", role: "Director / O-Licence Holder", phone: "07700 900123", email: "ian@hargreaves-haulage.co.uk", isPrimary: true },
-      { id: "ct2", name: "Julie Hargreaves", role: "Office Manager", phone: "07700 900124", email: "julie@hargreaves-haulage.co.uk", isPrimary: false },
-      { id: "ct3", name: "Dave Pearson", role: "Workshop Foreman", phone: "07700 900125", email: "dave@hargreaves-haulage.co.uk", isPrimary: false },
-    ],
-    vehicles: [
-      { id: "v1", reg: "BD63 XYZ", type: "HGV", make: "DAF", model: "CF 330", year: 2020, motDue: "2026-02-18", pmiDue: "2026-02-14", insuranceDue: "2026-06-15", tachoDue: "2026-09-01", status: "defect_reported", checksThisWeek: 5, lastCheck: "2026-02-16", openDefects: 1 },
-      { id: "v2", reg: "KL19 ABC", type: "HGV", make: "DAF", model: "LF 230", year: 2019, motDue: "2026-05-22", pmiDue: "2026-02-20", insuranceDue: "2026-08-30", tachoDue: "2026-07-15", status: "active", checksThisWeek: 5, lastCheck: "2026-02-16", openDefects: 0 },
-      { id: "v3", reg: "MN20 DEF", type: "Van", make: "Ford", model: "Transit 350", year: 2020, motDue: "2026-07-11", pmiDue: "2026-03-28", insuranceDue: "2026-11-05", tachoDue: null, status: "active", checksThisWeek: 4, lastCheck: "2026-02-15", openDefects: 0 },
-      { id: "v4", reg: "PQ21 GHI", type: "Trailer", make: "SDC", model: "Curtainsider", year: 2021, motDue: "2026-04-30", pmiDue: "2026-03-01", insuranceDue: "2026-12-01", tachoDue: null, status: "active", checksThisWeek: 3, lastCheck: "2026-02-14", openDefects: 0 },
-    ],
-    recentChecks: [
-      { date: "2026-02-16", driver: "Mark Thompson", vehicle: "BD63 XYZ", result: "fail", defects: 1 },
-      { date: "2026-02-16", driver: "Alan Davies", vehicle: "KL19 ABC", result: "pass", defects: 0 },
-      { date: "2026-02-16", driver: "Paul Rogers", vehicle: "MN20 DEF", result: "pass", defects: 0 },
-      { date: "2026-02-15", driver: "Mark Thompson", vehicle: "BD63 XYZ", result: "pass", defects: 0 },
-      { date: "2026-02-15", driver: "Alan Davies", vehicle: "KL19 ABC", result: "pass", defects: 0 },
-      { date: "2026-02-15", driver: "Paul Rogers", vehicle: "MN20 DEF", result: "pass", defects: 0 },
-    ],
-    defects: [
-      { id: "DEF-001", vehicleReg: "BD63 XYZ", description: "Nearside brake pad worn below limit", severity: "dangerous", status: "open", date: "2026-02-15", category: "Brakes" },
-    ],
-  },
-  {
-    id: "c2", name: "Northern Express Transport", oLicence: "OB2345678",
-    operatingCentre: "Wakefield Commercial Depot, Calder Vale Road, Wakefield, WF1 2AB",
-    address: "Northern Express House, 45 Westgate, Wakefield, WF1 1JY",
-    phone: "01924 331 200", email: "ops@northern-express.co.uk",
-    authorisedVehicles: 6, authorisedTrailers: 2,
-    licenceStatus: "Valid", licenceExpiry: "2028-03-20",
-    contacts: [
-      { id: "ct4", name: "Sarah Mitchell", role: "Managing Director", phone: "07700 900456", email: "sarah@northern-express.co.uk", isPrimary: true },
-      { id: "ct5", name: "Tom Bennett", role: "Transport Clerk", phone: "07700 900457", email: "tom@northern-express.co.uk", isPrimary: false },
-    ],
-    vehicles: [
-      { id: "v5", reg: "AB12 CDE", type: "HGV", make: "Volvo", model: "FH 460", year: 2022, motDue: "2026-02-19", pmiDue: "2026-03-05", insuranceDue: "2026-05-20", tachoDue: "2026-10-12", status: "active", checksThisWeek: 6, lastCheck: "2026-02-16", openDefects: 0 },
-      { id: "v6", reg: "FG34 HIJ", type: "HGV", make: "Scania", model: "R450", year: 2021, motDue: "2026-06-14", pmiDue: "2026-02-21", insuranceDue: "2026-09-18", tachoDue: "2026-08-03", status: "active", checksThisWeek: 6, lastCheck: "2026-02-16", openDefects: 0 },
-      { id: "v7", reg: "JK56 LMN", type: "Van", make: "Mercedes", model: "Sprinter 314", year: 2022, motDue: "2026-08-25", pmiDue: "2026-04-10", insuranceDue: "2026-07-22", tachoDue: null, status: "active", checksThisWeek: 5, lastCheck: "2026-02-15", openDefects: 0 },
-    ],
-    recentChecks: [
-      { date: "2026-02-16", driver: "James Ward", vehicle: "AB12 CDE", result: "pass", defects: 0 },
-      { date: "2026-02-16", driver: "Peter Clarke", vehicle: "FG34 HIJ", result: "pass", defects: 0 },
-    ],
-    defects: [],
-  },
-  {
-    id: "c3", name: "Yorkshire Fleet Services", oLicence: "OB3456789",
-    operatingCentre: "Bradford Business Park, Euroway Estate, Bradford, BD4 7TJ",
-    address: "Yorkshire Fleet House, 8 Manor Row, Bradford, BD1 4PB",
-    phone: "01274 882 400", email: "fleet@yorkshirefleet.co.uk",
-    authorisedVehicles: 10, authorisedTrailers: 6,
-    licenceStatus: "Valid", licenceExpiry: "2027-11-30",
-    contacts: [
-      { id: "ct6", name: "David Brooks", role: "Owner / Director", phone: "07700 900789", email: "david@yorkshirefleet.co.uk", isPrimary: true },
-      { id: "ct7", name: "Lisa Brooks", role: "Finance Manager", phone: "07700 900790", email: "lisa@yorkshirefleet.co.uk", isPrimary: false },
-      { id: "ct8", name: "Gary Firth", role: "Yard Manager", phone: "07700 900791", email: "gary@yorkshirefleet.co.uk", isPrimary: false },
-    ],
-    vehicles: [
-      { id: "v8", reg: "LM67 OPQ", type: "HGV", make: "DAF", model: "XF 480", year: 2020, motDue: "2026-03-15", pmiDue: "2026-02-10", insuranceDue: "2026-04-28", tachoDue: "2026-06-20", status: "active", checksThisWeek: 6, lastCheck: "2026-02-16", openDefects: 1 },
-      { id: "v9", reg: "RS89 TUV", type: "HGV", make: "Volvo", model: "FM 330", year: 2019, motDue: "2026-09-30", pmiDue: "2026-03-22", insuranceDue: "2026-11-15", tachoDue: "2026-12-01", status: "active", checksThisWeek: 6, lastCheck: "2026-02-16", openDefects: 0 },
-      { id: "v10", reg: "WX01 YZA", type: "Van", make: "VW", model: "Crafter", year: 2021, motDue: "2026-10-20", pmiDue: "2026-04-05", insuranceDue: "2026-08-10", tachoDue: null, status: "active", checksThisWeek: 3, lastCheck: "2026-02-14", openDefects: 0 },
-      { id: "v11", reg: "BC23 DEF", type: "Trailer", make: "Montracon", model: "Flatbed", year: 2020, motDue: "2026-05-18", pmiDue: "2026-03-10", insuranceDue: "2026-10-05", tachoDue: null, status: "active", checksThisWeek: 4, lastCheck: "2026-02-15", openDefects: 0 },
-      { id: "v12", reg: "GH45 IJK", type: "HGV", make: "Scania", model: "R450", year: 2019, motDue: "2026-02-12", pmiDue: "2026-02-28", insuranceDue: "2026-06-30", tachoDue: "2026-07-25", status: "defect_reported", checksThisWeek: 1, lastCheck: "2026-02-12", openDefects: 1 },
-    ],
-    recentChecks: [
-      { date: "2026-02-16", driver: "Steve Williams", vehicle: "LM67 OPQ", result: "pass", defects: 0 },
-      { date: "2026-02-16", driver: "David Brooks Jr", vehicle: "RS89 TUV", result: "pass", defects: 0 },
-    ],
-    defects: [
-      { id: "DEF-002", vehicleReg: "GH45 IJK", description: "MOT expired — vehicle must not be used", severity: "dangerous", status: "in_progress", date: "2026-02-13", category: "MOT" },
-      { id: "DEF-003", vehicleReg: "LM67 OPQ", description: "Offside indicator intermittent", severity: "minor", status: "open", date: "2026-02-14", category: "Lights" },
-    ],
-  },
+const MOCK_COMPANIES = [
+  { id: "c1", name: "Hargreaves Haulage Ltd", o_licence: "OB1234567", operating_centre: "Leeds Industrial Estate, LS9 8AB", address: "12 Commercial Road, Leeds, LS1 4AP", phone: "0113 496 2100", email: "office@hargreaves-haulage.co.uk", authorised_vehicles: 8, authorised_trailers: 4, licence_status: "Valid", licence_expiry: "2027-08-15", archived_at: null },
+  { id: "c2", name: "Northern Express Transport", o_licence: "OB2345678", operating_centre: "Wakefield Depot, WF1 2AB", address: "45 Westgate, Wakefield, WF1 1JY", phone: "01924 331 200", email: "ops@northern-express.co.uk", authorised_vehicles: 6, authorised_trailers: 2, licence_status: "Valid", licence_expiry: "2028-03-20", archived_at: null },
+  { id: "c3", name: "Yorkshire Fleet Services", o_licence: "OB3456789", operating_centre: "Bradford Business Park, BD4 7TJ", address: "8 Manor Row, Bradford, BD1 4PB", phone: "01274 882 400", email: "fleet@yorkshirefleet.co.uk", authorised_vehicles: 10, authorised_trailers: 6, licence_status: "Valid", licence_expiry: "2027-11-30", archived_at: null },
+  { id: "c4", name: "Pennine Logistics Group", o_licence: "OB4567890", operating_centre: "Huddersfield Trade Park, HD1 6QF", address: "22 Market Street, Huddersfield, HD1 2EN", phone: "01484 510 300", email: "ops@penninelogistics.co.uk", authorised_vehicles: 4, authorised_trailers: 2, licence_status: "Valid", licence_expiry: "2028-06-10", archived_at: null },
 ];
 
-function getVehicleRisk(v) {
-  const dates = [v.motDue, v.pmiDue, v.insuranceDue, v.tachoDue].filter(Boolean);
-  const risks = dates.map(d => getRisk(getDaysUntil(d)));
-  const pri = { high: 3, medium: 2, low: 1, green: 0 };
-  let worst = "green";
-  risks.forEach(r => { if (pri[r] > pri[worst]) worst = r; });
-  if (v.openDefects > 0 && v.status === "defect_reported") worst = "high";
-  return worst;
+const MOCK_VEHICLES = [
+  { id: "v1", company_id: "c1", reg: "BD63 XYZ", type: "HGV", make: "DAF", model: "CF 330", year: 2020, mot_due: "2026-02-18", pmi_due: "2026-02-14", insurance_due: "2026-06-15", tacho_due: "2026-09-01", service_due: "2026-03-20", pmi_interval: 6, archived_at: null },
+  { id: "v2", company_id: "c1", reg: "KL19 ABC", type: "HGV", make: "DAF", model: "LF 230", year: 2019, mot_due: "2026-05-22", pmi_due: "2026-02-20", insurance_due: "2026-08-30", tacho_due: "2026-07-15", service_due: "2026-04-10", pmi_interval: 6, archived_at: null },
+  { id: "v3", company_id: "c1", reg: "MN20 DEF", type: "Van", make: "Ford", model: "Transit 350", year: 2020, mot_due: "2026-07-11", pmi_due: "2026-03-28", insurance_due: "2026-11-05", tacho_due: null, service_due: "2026-05-15", pmi_interval: 8, archived_at: null },
+  { id: "v4", company_id: "c1", reg: "PQ21 GHI", type: "Trailer", make: "SDC", model: "Curtainsider", year: 2021, mot_due: "2026-04-30", pmi_due: "2026-03-01", insurance_due: "2026-12-01", tacho_due: null, service_due: null, pmi_interval: 6, archived_at: null },
+  { id: "v5", company_id: "c2", reg: "AB12 CDE", type: "HGV", make: "Volvo", model: "FH 460", year: 2022, mot_due: "2026-02-19", pmi_due: "2026-03-05", insurance_due: "2026-05-20", tacho_due: "2026-10-12", service_due: "2026-04-22", pmi_interval: 6, archived_at: null },
+  { id: "v6", company_id: "c2", reg: "FG34 HIJ", type: "HGV", make: "Scania", model: "R450", year: 2021, mot_due: "2026-06-14", pmi_due: "2026-02-21", insurance_due: "2026-09-18", tacho_due: "2026-08-03", service_due: "2026-05-30", pmi_interval: 6, archived_at: null },
+  { id: "v7", company_id: "c2", reg: "JK56 LMN", type: "Van", make: "Mercedes", model: "Sprinter 314", year: 2022, mot_due: "2026-08-25", pmi_due: "2026-04-10", insurance_due: "2026-07-22", tacho_due: null, service_due: "2026-06-01", pmi_interval: 10, archived_at: null },
+  { id: "v8", company_id: "c3", reg: "LM67 OPQ", type: "HGV", make: "DAF", model: "XF 480", year: 2020, mot_due: "2026-03-15", pmi_due: "2026-02-10", insurance_due: "2026-04-28", tacho_due: "2026-06-20", service_due: "2026-03-25", pmi_interval: 6, archived_at: null },
+  { id: "v9", company_id: "c3", reg: "GH45 IJK", type: "HGV", make: "Scania", model: "R450", year: 2019, mot_due: "2026-02-12", pmi_due: "2026-02-28", insurance_due: "2026-06-30", tacho_due: "2026-07-25", service_due: "2026-04-15", pmi_interval: 6, archived_at: null },
+  { id: "v10", company_id: "c4", reg: "LN54 BCD", type: "HGV", make: "MAN", model: "TGX 18.470", year: 2021, mot_due: "2026-08-10", pmi_due: "2026-04-20", insurance_due: "2026-09-25", tacho_due: "2026-11-10", service_due: "2026-06-05", pmi_interval: 6, archived_at: null },
+];
+
+function RiskPill({ level }) {
+  const cfg = RISK[level];
+  return (<span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "3px 10px", borderRadius: "20px", background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: "10px", fontWeight: 700, color: cfg.text, letterSpacing: "0.05em" }}>
+    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: cfg.dot }} />{cfg.label}
+  </span>);
 }
 
-function getCompanyRisk(c) {
-  const vehicleRisks = c.vehicles.map(getVehicleRisk);
-  const pri = { high: 3, medium: 2, low: 1, green: 0 };
-  let worst = "green";
-  vehicleRisks.forEach(r => { if (pri[r] > pri[worst]) worst = r; });
-  return worst;
+function FormField({ label, value, onChange, placeholder, type = "text", icon }) {
+  return (<div>
+    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{label}</label>
+    <div style={{ position: "relative" }}>
+      {icon && <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "14px" }}>{icon}</span>}
+      <input type={type} placeholder={placeholder} value={value || ""}
+        onChange={e => onChange(type === "number" ? parseInt(e.target.value) || 0 : e.target.value)}
+        style={{ width: "100%", padding: icon ? "10px 14px 10px 38px" : "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", background: "#FAFAFA", fontFamily: "inherit" }} />
+    </div>
+  </div>);
 }
 
-// ============================================================
-// MAIN APP
-// ============================================================
+function CompanyFormModal({ company, onSave, onClose }) {
+  const isEdit = !!company;
+  const [form, setForm] = useState({
+    name: company?.name || "", o_licence: company?.o_licence || "", operating_centre: company?.operating_centre || "",
+    address: company?.address || "", phone: company?.phone || "", email: company?.email || "",
+    authorised_vehicles: company?.authorised_vehicles || 0, authorised_trailers: company?.authorised_trailers || 0,
+    licence_expiry: company?.licence_expiry || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm({ ...form, [k]: v });
 
-export default function CompanyDetail() {
-  const [selectedCompanyId, setSelectedCompanyId] = useState("c1");
-  const [activeTab, setActiveTab] = useState("overview");
-  const [editingContact, setEditingContact] = useState(null);
-  const [showAddContact, setShowAddContact] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", role: "", phone: "", email: "" });
-  const [successMsg, setSuccessMsg] = useState(null);
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={onClose}>
+      <div style={{ background: "#FFFFFF", borderRadius: "20px", width: "100%", maxWidth: "560px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between" }}>
+          <div>
+            <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{isEdit ? "\u270F\uFE0F Edit Company" : "\u2795 Add Company"}</h2>
+            <p style={{ fontSize: "13px", color: "#64748B", margin: "4px 0 0" }}>{isEdit ? "Update operator details" : "Add a new operator to your portfolio"}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94A3B8" }}>{"\u2715"}</button>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          <FormField label="Company Name *" value={form.name} onChange={v => set("name", v)} placeholder="e.g. Hargreaves Haulage Ltd" icon={"\u{1F3E2}"} />
+          <FormField label="O-Licence Number" value={form.o_licence} onChange={v => set("o_licence", v)} placeholder="e.g. OB1234567" icon={"\u{1F4CB}"} />
+          <FormField label="Operating Centre" value={form.operating_centre} onChange={v => set("operating_centre", v)} placeholder="Address" icon={"\u{1F4CD}"} />
+          <FormField label="Address" value={form.address} onChange={v => set("address", v)} placeholder="Registered address" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <FormField label="Phone" value={form.phone} onChange={v => set("phone", v)} placeholder="0113 496 2100" icon={"\u{1F4DE}"} />
+            <FormField label="Email" value={form.email} onChange={v => set("email", v)} placeholder="office@company.co.uk" icon={"\u{1F4E7}"} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+            <FormField label="Auth. Vehicles" value={form.authorised_vehicles} onChange={v => set("authorised_vehicles", v)} type="number" />
+            <FormField label="Auth. Trailers" value={form.authorised_trailers} onChange={v => set("authorised_trailers", v)} type="number" />
+            <FormField label="Licence Expiry" value={form.licence_expiry} onChange={v => set("licence_expiry", v)} type="date" />
+          </div>
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={onClose} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFFFFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={async () => { setSaving(true); await onSave(form, company?.id); setSaving(false); }} disabled={saving || !form.name.trim()} style={{
+            padding: "10px 24px", border: "none", borderRadius: "10px",
+            background: !form.name.trim() ? "#E5E7EB" : "linear-gradient(135deg, #0F172A, #1E293B)",
+            color: !form.name.trim() ? "#94A3B8" : "white", fontSize: "13px", fontWeight: 700, cursor: !form.name.trim() ? "not-allowed" : "pointer",
+          }}>{saving ? "Saving..." : isEdit ? "\u{1F4BE} Save Changes" : "\u2795 Add Company"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const company = COMPANIES.find(c => c.id === selectedCompanyId);
-  const companyRisk = getCompanyRisk(company);
-  const rCfg = RISK[companyRisk];
-  const openDefects = company.defects.filter(d => d.status !== "closed");
-  const totalChecksThisWeek = company.vehicles.reduce((s, v) => s + v.checksThisWeek, 0);
-  const vehiclesCheckedToday = company.vehicles.filter(v => v.lastCheck === "2026-02-16").length;
+function VehicleFormModal({ vehicle, companyId, onSave, onClose }) {
+  const isEdit = !!vehicle;
+  const [form, setForm] = useState({
+    reg: vehicle?.reg || "", type: vehicle?.type || "HGV", make: vehicle?.make || "", model: vehicle?.model || "",
+    year: vehicle?.year || 2024, mot_due: vehicle?.mot_due || "", pmi_due: vehicle?.pmi_due || "",
+    insurance_due: vehicle?.insurance_due || "", tacho_due: vehicle?.tacho_due || "",
+    service_due: vehicle?.service_due || "", pmi_interval: vehicle?.pmi_interval || 6,
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm({ ...form, [k]: v });
 
-  const showSuccess = (msg) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 3000); };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={onClose}>
+      <div style={{ background: "#FFFFFF", borderRadius: "20px", width: "100%", maxWidth: "560px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between" }}>
+          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{isEdit ? `\u270F\uFE0F Edit ${vehicle.reg}` : "\u2795 Add Vehicle"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94A3B8" }}>{"\u2715"}</button>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
+            <FormField label="Registration *" value={form.reg} onChange={v => set("reg", v)} placeholder="BD63 XYZ" />
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>Type</label>
+              <select value={form.type} onChange={e => set("type", e.target.value)} style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", background: "#FAFAFA", fontFamily: "inherit" }}>
+                <option value="HGV">HGV</option><option value="Van">Van</option><option value="Trailer">Trailer</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+            <FormField label="Make" value={form.make} onChange={v => set("make", v)} placeholder="DAF" />
+            <FormField label="Model" value={form.model} onChange={v => set("model", v)} placeholder="CF 330" />
+            <FormField label="Year" value={form.year} onChange={v => set("year", v)} type="number" />
+          </div>
+          <div style={{ padding: "14px 16px", borderRadius: "12px", background: "#F0F9FF", border: "1px solid #BFDBFE" }}>
+            <div style={{ fontSize: "12px", fontWeight: 700, color: "#1E40AF", marginBottom: "10px" }}>{"\u{1F4C5}"} Compliance Dates</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <FormField label="MOT Due" value={form.mot_due} onChange={v => set("mot_due", v)} type="date" />
+              <FormField label="PMI Due" value={form.pmi_due} onChange={v => set("pmi_due", v)} type="date" />
+              <FormField label="Insurance Due" value={form.insurance_due} onChange={v => set("insurance_due", v)} type="date" />
+              <FormField label="Tacho Cal" value={form.tacho_due} onChange={v => set("tacho_due", v)} type="date" />
+              <FormField label="Service Due" value={form.service_due} onChange={v => set("service_due", v)} type="date" />
+              <FormField label="PMI Interval (wks)" value={form.pmi_interval} onChange={v => set("pmi_interval", v)} type="number" />
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={onClose} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFFFFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={async () => { setSaving(true); await onSave({ ...form, company_id: companyId }, vehicle?.id); setSaving(false); }} disabled={saving || !form.reg.trim()} style={{
+            padding: "10px 24px", border: "none", borderRadius: "10px",
+            background: !form.reg.trim() ? "#E5E7EB" : "linear-gradient(135deg, #0F172A, #1E293B)",
+            color: !form.reg.trim() ? "#94A3B8" : "white", fontSize: "13px", fontWeight: 700, cursor: !form.reg.trim() ? "not-allowed" : "pointer",
+          }}>{saving ? "Saving..." : isEdit ? "\u{1F4BE} Save" : "\u2795 Add Vehicle"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ComplyFleetCompany() {
+  const [companies, setCompanies] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [companyForm, setCompanyForm] = useState(null);
+  const [vehicleForm, setVehicleForm] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const flash = (message, type = "success") => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
+
+  useEffect(() => { loadData(); }, []);
+
+  async function loadData() {
+    setLoading(true);
+    if (isSupabaseReady()) {
+      const { data: cos } = await supabase.from("companies").select("*").order("name");
+      const { data: vehs } = await supabase.from("vehicles").select("*").order("reg");
+      setCompanies(cos || []); setVehicles(vehs || []);
+    } else {
+      setCompanies(MOCK_COMPANIES); setVehicles(MOCK_VEHICLES);
+    }
+    setLoading(false);
+  }
+
+  async function saveCompany(form, editId) {
+    if (isSupabaseReady()) {
+      if (editId) { await supabase.from("companies").update(form).eq("id", editId); }
+      else { await supabase.from("companies").insert({ ...form, licence_status: "Valid" }); }
+      await loadData();
+    } else {
+      if (editId) setCompanies(prev => prev.map(c => c.id === editId ? { ...c, ...form } : c));
+      else setCompanies(prev => [...prev, { ...form, id: "c" + Date.now(), archived_at: null, licence_status: "Valid" }]);
+    }
+    flash(editId ? "Company updated" : "Company added"); setCompanyForm(null);
+  }
+
+  async function archiveCompany(id) {
+    const ts = new Date().toISOString();
+    if (isSupabaseReady()) { await supabase.from("companies").update({ archived_at: ts }).eq("id", id); await loadData(); }
+    else setCompanies(prev => prev.map(c => c.id === id ? { ...c, archived_at: ts } : c));
+    flash("Company archived"); setConfirm(null); if (selectedId === id) setSelectedId(null);
+  }
+
+  async function restoreCompany(id) {
+    if (isSupabaseReady()) { await supabase.from("companies").update({ archived_at: null }).eq("id", id); await loadData(); }
+    else setCompanies(prev => prev.map(c => c.id === id ? { ...c, archived_at: null } : c));
+    flash("Company restored");
+  }
+
+  async function saveVehicle(form, editId) {
+    if (isSupabaseReady()) {
+      if (editId) { await supabase.from("vehicles").update(form).eq("id", editId); }
+      else { await supabase.from("vehicles").insert(form); }
+      await loadData();
+    } else {
+      if (editId) setVehicles(prev => prev.map(v => v.id === editId ? { ...v, ...form } : v));
+      else setVehicles(prev => [...prev, { ...form, id: "v" + Date.now(), archived_at: null }]);
+    }
+    flash(editId ? "Vehicle updated" : "Vehicle added"); setVehicleForm(null);
+  }
+
+  async function archiveVehicle(id) {
+    const ts = new Date().toISOString();
+    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: ts }).eq("id", id); await loadData(); }
+    else setVehicles(prev => prev.map(v => v.id === id ? { ...v, archived_at: ts } : v));
+    flash("Vehicle archived"); setConfirm(null);
+  }
+
+  async function restoreVehicle(id) {
+    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: null }).eq("id", id); await loadData(); }
+    else setVehicles(prev => prev.map(v => v.id === id ? { ...v, archived_at: null } : v));
+    flash("Vehicle restored");
+  }
+
+  const visibleCompanies = companies.filter(c => showArchived ? c.archived_at : !c.archived_at);
+  const selected = companies.find(c => c.id === selectedId);
+  const selectedVehiclesActive = vehicles.filter(v => v.company_id === selectedId && !v.archived_at);
+  const selectedVehiclesArchived = vehicles.filter(v => v.company_id === selectedId && v.archived_at);
+
+  function getCompanyRisk(cid) {
+    const vehs = vehicles.filter(v => v.company_id === cid && !v.archived_at);
+    let worst = "green";
+    const p = { high: 3, medium: 2, low: 1, green: 0 };
+    vehs.forEach(v => { ["mot_due","pmi_due","insurance_due","tacho_due","service_due"].forEach(k => { const r = getRisk(getDaysUntil(v[k])); if (p[r] > p[worst]) worst = r; }); });
+    return worst;
+  }
+
+  const Btn = ({ children, onClick, style: s, ...props }) => (
+    <button onClick={onClick} style={{ padding: "6px 12px", borderRadius: "8px", fontSize: "11px", fontWeight: 700, cursor: "pointer", border: "1px solid #E5E7EB", background: "#FFFFFF", color: "#374151", ...s }} {...props}>{children}</button>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#F1F5F9", fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap');
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        input:focus, select:focus { outline: none; border-color: #3B82F6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-      `}</style>
+        input:focus, select:focus { border-color: #3B82F6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important; }`}</style>
 
-      {/* Header */}
-      <header style={{ background: "linear-gradient(135deg, #0F172A, #1E293B)", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
+      <header style={{ background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🚛</div>
-          <span style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Comply<span style={{ color: "#60A5FA" }}>Fleet</span></span>
+          <a href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>{"\u{1F69B}"}</div>
+            <span style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Comply<span style={{ color: "#60A5FA" }}>Fleet</span></span>
+          </a>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><span style={{ fontSize: "18px" }}>🔔</span></div>
+          {!isSupabaseReady() && <span style={{ padding: "4px 10px", borderRadius: "6px", background: "rgba(251,191,36,0.2)", color: "#FCD34D", fontSize: "10px", fontWeight: 700 }}>DEMO MODE</span>}
           <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "13px" }}>JH</div>
         </div>
       </header>
 
-      {successMsg && (
-        <div style={{ position: "fixed", top: "76px", left: "50%", transform: "translateX(-50%)", padding: "12px 24px", borderRadius: "12px", background: "#059669", color: "white", fontSize: "13px", fontWeight: 700, boxShadow: "0 8px 24px rgba(5,150,105,0.3)", zIndex: 200, animation: "slideDown 0.3s ease" }}>✅ {successMsg}</div>
-      )}
+      <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "24px 20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>{"\u{1F3E2}"} Companies & Fleet</h1>
+            <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>{visibleCompanies.length} {showArchived ? "archived" : "active"} companies</p>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <Btn onClick={() => setShowArchived(!showArchived)} style={{ background: showArchived ? "#FEF3C7" : "#FFFFFF", color: showArchived ? "#92400E" : "#6B7280", borderColor: showArchived ? "#FDE68A" : "#E5E7EB" }}>{showArchived ? "\u{1F4E6} Viewing Archived" : "\u{1F4E6} Show Archived"}</Btn>
+            <Btn onClick={() => setCompanyForm(false)} style={{ background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white", border: "none", padding: "10px 20px", borderRadius: "12px", fontSize: "13px" }}>{"\u2795"} Add Company</Btn>
+          </div>
+        </div>
 
-      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px 20px" }}>
-
-        {/* Company Selector */}
-        <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "8px", marginBottom: "20px" }}>
-          {COMPANIES.map(c => {
-            const sel = c.id === selectedCompanyId;
-            const risk = getCompanyRisk(c);
-            return (
-              <button key={c.id} onClick={() => { setSelectedCompanyId(c.id); setActiveTab("overview"); }}
-                style={{
-                  padding: "10px 16px", borderRadius: "12px", border: "none", cursor: "pointer",
-                  background: sel ? "#1E293B" : "white", color: sel ? "white" : "#374151",
-                  boxShadow: sel ? "0 4px 12px rgba(30,41,59,0.2)" : "0 1px 3px rgba(0,0,0,0.04)",
-                  display: "flex", alignItems: "center", gap: "8px", whiteSpace: "nowrap",
-                  transition: "all 0.2s ease", flexShrink: 0, fontSize: "13px", fontWeight: 700,
+        <div style={{ display: "grid", gridTemplateColumns: selected && !selected.archived_at ? "380px 1fr" : "1fr", gap: "24px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {loading ? <div style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>Loading...</div> :
+            visibleCompanies.length === 0 ? <div style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>{showArchived ? "No archived companies" : "No companies yet"}</div> :
+            visibleCompanies.map(c => {
+              const risk = getCompanyRisk(c.id);
+              const vCount = vehicles.filter(v => v.company_id === c.id && !v.archived_at).length;
+              const isSel = selectedId === c.id;
+              const isArch = !!c.archived_at;
+              return (
+                <div key={c.id} onClick={() => !isArch && setSelectedId(c.id)} style={{
+                  background: "#FFFFFF", borderRadius: "16px", border: isSel ? "2px solid #1D4ED8" : "1px solid #E5E7EB",
+                  overflow: "hidden", cursor: isArch ? "default" : "pointer", opacity: isArch ? 0.7 : 1,
+                  boxShadow: isSel ? "0 8px 32px rgba(29,78,216,0.15)" : "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.2s ease",
                 }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: RISK[risk].dot }} />
-                {c.name}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Company Header */}
-        <div style={{ background: "linear-gradient(135deg, #0F172A, #1E293B)", borderRadius: "20px", padding: "28px", color: "white", marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
-            <div>
-              <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>{company.name}</h1>
-              <div style={{ display: "flex", gap: "12px", marginTop: "8px", fontSize: "12px", opacity: 0.7, flexWrap: "wrap" }}>
-                <span>📋 {company.oLicence}</span>
-                <span>📍 {company.operatingCentre.split(",").slice(-2).join(",").trim()}</span>
-                <span>📞 {company.phone}</span>
-              </div>
-            </div>
-            <div style={{ padding: "10px 18px", borderRadius: "14px", background: rCfg.dot + "22", border: `1px solid ${rCfg.dot}44`, textAlign: "center" }}>
-              <div style={{ fontSize: "10px", opacity: 0.7, textTransform: "uppercase", letterSpacing: "0.06em" }}>Risk</div>
-              <div style={{ fontSize: "18px", fontWeight: 800, color: rCfg.dot }}>
-                {companyRisk === "high" ? "🔴 HIGH" : companyRisk === "medium" ? "🟡 MED" : companyRisk === "low" ? "🔵 LOW" : "🟢 OK"}
-              </div>
-            </div>
-          </div>
-
-          {/* Primary contact + stats */}
-          <div style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
-            <div style={{ padding: "12px 16px", borderRadius: "12px", background: "rgba(255,255,255,0.07)", flex: "1.5 1 200px", display: "flex", alignItems: "center", gap: "12px" }}>
-              <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "linear-gradient(135deg, #3B82F6, #60A5FA)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "14px", flexShrink: 0 }}>
-                {company.contacts[0].name.split(" ").map(n => n[0]).join("")}
-              </div>
-              <div>
-                <div style={{ fontSize: "13px", fontWeight: 700 }}>{company.contacts[0].name}</div>
-                <div style={{ fontSize: "11px", opacity: 0.6 }}>{company.contacts[0].role}</div>
-                <div style={{ fontSize: "11px", opacity: 0.5 }}>{company.contacts[0].phone}</div>
-              </div>
-            </div>
-            {[
-              { val: company.vehicles.length, label: "Vehicles", icon: "🚛" },
-              { val: openDefects.length, label: "Open Defects", icon: "⚠️", alert: openDefects.length > 0 },
-              { val: vehiclesCheckedToday, label: "Checked Today", icon: "✅" },
-              { val: totalChecksThisWeek, label: "Checks/Week", icon: "📊" },
-            ].map((s, i) => (
-              <div key={i} style={{ padding: "12px 16px", borderRadius: "12px", background: s.alert ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.07)", flex: "1 1 90px", textAlign: "center" }}>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: s.alert ? "#FCA5A5" : "inherit" }}>{s.val}</div>
-                <div style={{ fontSize: "10px", opacity: 0.5, textTransform: "uppercase" }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: "4px", marginBottom: "20px", background: "white", borderRadius: "14px", padding: "4px", border: "1px solid #E2E8F0" }}>
-          {[
-            { key: "overview", label: "📋 Overview" },
-            { key: "fleet", label: `🚛 Fleet (${company.vehicles.length})` },
-            { key: "contacts", label: `👥 Contacts (${company.contacts.length})` },
-            { key: "checks", label: `🔍 Checks` },
-            { key: "defects", label: `⚠️ Defects (${openDefects.length})` },
-          ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              flex: 1, padding: "10px 8px", borderRadius: "10px", border: "none",
-              background: activeTab === tab.key ? "#1E293B" : "transparent",
-              color: activeTab === tab.key ? "white" : "#64748B",
-              fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
-            }}>{tab.label}</button>
-          ))}
-        </div>
-
-        {/* ========== OVERVIEW TAB ========== */}
-        {activeTab === "overview" && (
-          <div style={{ animation: "fadeIn 0.3s ease", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
-            {/* O-Licence Details */}
-            <div style={{ background: "white", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E2E8F0" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" }}>📋 O-Licence Details</h3>
-              {[
-                { label: "Licence Number", value: company.oLicence },
-                { label: "Status", value: company.licenceStatus, badge: true, color: "#059669", bg: "#ECFDF5" },
-                { label: "Expiry", value: formatDate(company.licenceExpiry) },
-                { label: "Authorised Vehicles", value: `${company.vehicles.filter(v=>v.type!=="Trailer").length} / ${company.authorisedVehicles}` },
-                { label: "Authorised Trailers", value: `${company.vehicles.filter(v=>v.type==="Trailer").length} / ${company.authorisedTrailers}` },
-                { label: "Operating Centre", value: company.operatingCentre },
-              ].map((row, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 0", borderBottom: i < 5 ? "1px solid #F3F4F6" : "none" }}>
-                  <span style={{ fontSize: "12px", color: "#6B7280" }}>{row.label}</span>
-                  {row.badge ? (
-                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 10px", borderRadius: "10px", background: row.bg, color: row.color }}>{row.value}</span>
-                  ) : (
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#0F172A", textAlign: "right", maxWidth: "60%" }}>{row.value}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Company Contact */}
-            <div style={{ background: "white", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E2E8F0" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" }}>🏢 Company Details</h3>
-              {[
-                { label: "Registered Address", value: company.address },
-                { label: "Phone", value: company.phone },
-                { label: "Email", value: company.email },
-                { label: "Operating Centre", value: company.operatingCentre.split(",")[0] },
-              ].map((row, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 0", borderBottom: i < 3 ? "1px solid #F3F4F6" : "none" }}>
-                  <span style={{ fontSize: "12px", color: "#6B7280" }}>{row.label}</span>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#0F172A", textAlign: "right", maxWidth: "60%" }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Fleet Summary */}
-            <div style={{ background: "white", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E2E8F0" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", marginBottom: "14px" }}>🚛 Fleet Compliance Summary</h3>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
-                {["green", "low", "medium", "high"].map(level => {
-                  const count = company.vehicles.filter(v => getVehicleRisk(v) === level).length;
-                  return (
-                    <div key={level} style={{ flex: 1, textAlign: "center", padding: "10px 8px", borderRadius: "10px", background: RISK[level].bg, border: `1px solid ${RISK[level].border}` }}>
-                      <div style={{ fontSize: "20px", fontWeight: 800, color: RISK[level].text }}>{count}</div>
-                      <div style={{ fontSize: "9px", fontWeight: 700, color: RISK[level].text, textTransform: "uppercase" }}>{RISK[level].label}</div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                {company.vehicles.map(v => {
-                  const risk = getVehicleRisk(v);
-                  return (
-                    <div key={v.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", borderRadius: "8px", background: "#F8FAFC" }}>
-                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: RISK[risk].dot, flexShrink: 0 }} />
-                      <span style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 700, color: "#0F172A", minWidth: "80px" }}>{v.reg}</span>
-                      <span style={{ fontSize: "11px", color: "#64748B" }}>{v.type}</span>
-                      <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: RISK[risk].text }}>{RISK[risk].label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div style={{ background: "white", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E2E8F0" }}>
-              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", marginBottom: "14px" }}>📊 Recent Activity</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {company.recentChecks.slice(0, 6).map((ch, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "8px", background: ch.result === "fail" ? "#FEF2F2" : "#F8FAFC" }}>
-                    <span style={{ fontSize: "14px" }}>{ch.result === "pass" ? "✅" : "⚠️"}</span>
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#0F172A" }}>{ch.driver}</span>
-                      <span style={{ fontSize: "11px", color: "#94A3B8" }}> — {ch.vehicle}</span>
-                    </div>
-                    <span style={{ fontSize: "10px", color: "#94A3B8" }}>{formatDate(ch.date)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========== FLEET TAB ========== */}
-        {activeTab === "fleet" && (
-          <div style={{ animation: "fadeIn 0.3s ease" }}>
-            <div style={{ overflowX: "auto", borderRadius: "16px", border: "1px solid #E2E8F0", background: "white" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
-                <thead>
-                  <tr style={{ background: "#F8FAFC" }}>
-                    {["Vehicle", "Type", "Risk", "MOT Due", "PMI Due", "Insurance", "Tacho", "Checks/Wk", "Defects"].map(h => (
-                      <th key={h} style={{ padding: "12px 12px", textAlign: "left", fontSize: "10px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "2px solid #E5E7EB" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {company.vehicles.map(v => {
-                    const risk = getVehicleRisk(v);
-                    const DateCell = ({ date }) => {
-                      const days = getDaysUntil(date);
-                      const r = getRisk(days);
-                      const c = RISK[r];
-                      return (
-                        <td style={{ padding: "12px" }}>
-                          {date ? (
-                            <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 8px", borderRadius: "6px", background: c.bg }}>
-                              <span style={{ fontFamily: "monospace", fontSize: "11px", fontWeight: 600, color: c.text }}>{formatDate(date)}</span>
-                            </div>
-                          ) : <span style={{ color: "#D1D5DB", fontSize: "12px" }}>—</span>}
-                        </td>
-                      );
-                    };
-                    return (
-                      <tr key={v.id} style={{ borderBottom: "1px solid #F3F4F6" }} onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = ""}>
-                        <td style={{ padding: "14px 12px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span style={{ fontSize: "16px" }}>{TYPES[v.type]}</span>
-                            <div>
-                              <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: "13px", color: "#0F172A" }}>{v.reg}</div>
-                              <div style={{ fontSize: "10px", color: "#94A3B8" }}>{v.year} {v.make} {v.model}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ padding: "12px", fontSize: "12px", color: "#475569" }}>{v.type}</td>
-                        <td style={{ padding: "12px" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 8px", borderRadius: "10px", background: RISK[risk].bg, border: `1px solid ${RISK[risk].border}`, fontSize: "10px", fontWeight: 700, color: RISK[risk].text }}>
-                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: RISK[risk].dot }} />{RISK[risk].label}
-                          </span>
-                        </td>
-                        <DateCell date={v.motDue} />
-                        <DateCell date={v.pmiDue} />
-                        <DateCell date={v.insuranceDue} />
-                        <DateCell date={v.tachoDue} />
-                        <td style={{ padding: "12px", fontSize: "13px", fontWeight: 700, color: "#2563EB", textAlign: "center" }}>{v.checksThisWeek}</td>
-                        <td style={{ padding: "12px" }}>
-                          {v.openDefects > 0 ? (
-                            <span style={{ padding: "3px 8px", borderRadius: "6px", background: "#FEF2F2", color: "#DC2626", fontWeight: 700, fontSize: "12px" }}>{v.openDefects}</span>
-                          ) : <span style={{ color: "#10B981", fontSize: "12px", fontWeight: 600 }}>0</span>}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ========== CONTACTS TAB ========== */}
-        {activeTab === "contacts" && (
-          <div style={{ animation: "fadeIn 0.3s ease" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#0F172A" }}>Company Contacts</h3>
-              <button onClick={() => setShowAddContact(true)} style={{ padding: "8px 16px", borderRadius: "10px", border: "none", background: "#2563EB", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>+ Add Contact</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px" }}>
-              {company.contacts.map(ct => (
-                <div key={ct.id} style={{ background: "white", borderRadius: "14px", padding: "20px", border: ct.isPrimary ? "2px solid #2563EB" : "1px solid #E2E8F0" }}>
-                  {ct.isPrimary && (
-                    <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "6px", background: "#EFF6FF", color: "#1E40AF", marginBottom: "10px", display: "inline-block" }}>PRIMARY CONTACT</span>
-                  )}
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
-                    <div style={{
-                      width: "48px", height: "48px", borderRadius: "50%",
-                      background: ct.isPrimary ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "linear-gradient(135deg, #64748B, #94A3B8)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "white", fontWeight: 700, fontSize: "16px", flexShrink: 0,
-                    }}>{ct.name.split(" ").map(n => n[0]).join("")}</div>
-                    <div>
-                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#0F172A" }}>{ct.name}</div>
-                      <div style={{ fontSize: "12px", color: "#64748B" }}>{ct.role}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <a href={`tel:${ct.phone}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderRadius: "8px", background: "#F0FDF4", textDecoration: "none", color: "#059669", fontSize: "13px", fontWeight: 600, border: "1px solid #A7F3D0" }}>
-                      📞 {ct.phone}
-                    </a>
-                    <a href={`mailto:${ct.email}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderRadius: "8px", background: "#EFF6FF", textDecoration: "none", color: "#1E40AF", fontSize: "13px", fontWeight: 600, border: "1px solid #BFDBFE", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      📧 {ct.email}
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Add Contact Modal */}
-            {showAddContact && (
-              <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: "20px", backdropFilter: "blur(4px)" }} onClick={() => setShowAddContact(false)}>
-                <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: "20px", padding: "28px", maxWidth: "420px", width: "100%", animation: "scaleIn 0.2s ease", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}>
-                  <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", marginBottom: "16px" }}>Add Contact</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    {[
-                      { label: "Name *", key: "name", placeholder: "Full name" },
-                      { label: "Role", key: "role", placeholder: "e.g. Yard Manager" },
-                      { label: "Phone *", key: "phone", placeholder: "07700 000000" },
-                      { label: "Email", key: "email", placeholder: "name@company.co.uk" },
-                    ].map(f => (
-                      <label key={f.key}>
-                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#374151", display: "block", marginBottom: "4px" }}>{f.label}</span>
-                        <input type="text" placeholder={f.placeholder} value={newContact[f.key]}
-                          onChange={e => setNewContact(prev => ({ ...prev, [f.key]: e.target.value }))}
-                          style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1.5px solid #D1D5DB", fontSize: "14px", fontFamily: "inherit" }} />
-                      </label>
-                    ))}
-                    <button onClick={() => { setShowAddContact(false); setNewContact({ name: "", role: "", phone: "", email: "" }); showSuccess("Contact added"); }}
-                      disabled={!newContact.name || !newContact.phone}
-                      style={{
-                        padding: "12px", borderRadius: "10px", border: "none",
-                        background: newContact.name && newContact.phone ? "#2563EB" : "#E2E8F0",
-                        color: newContact.name && newContact.phone ? "white" : "#94A3B8",
-                        fontSize: "14px", fontWeight: 700, cursor: newContact.name && newContact.phone ? "pointer" : "not-allowed", marginTop: "4px",
-                      }}>Add Contact</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========== CHECKS TAB ========== */}
-        {activeTab === "checks" && (
-          <div style={{ animation: "fadeIn 0.3s ease" }}>
-            <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
-              <div style={{ padding: "14px 20px", borderRadius: "12px", background: "white", border: "1px solid #E2E8F0", textAlign: "center", flex: "1 1 120px" }}>
-                <div style={{ fontSize: "24px", fontWeight: 800, color: "#2563EB" }}>{totalChecksThisWeek}</div>
-                <div style={{ fontSize: "11px", color: "#6B7280" }}>This week</div>
-              </div>
-              <div style={{ padding: "14px 20px", borderRadius: "12px", background: "white", border: "1px solid #E2E8F0", textAlign: "center", flex: "1 1 120px" }}>
-                <div style={{ fontSize: "24px", fontWeight: 800, color: "#059669" }}>{vehiclesCheckedToday}/{company.vehicles.length}</div>
-                <div style={{ fontSize: "11px", color: "#6B7280" }}>Checked today</div>
-              </div>
-              <div style={{ padding: "14px 20px", borderRadius: "12px", background: company.vehicles.length - vehiclesCheckedToday > 0 ? "#FEF2F2" : "#ECFDF5", border: `1px solid ${company.vehicles.length - vehiclesCheckedToday > 0 ? "#FECACA" : "#A7F3D0"}`, textAlign: "center", flex: "1 1 120px" }}>
-                <div style={{ fontSize: "24px", fontWeight: 800, color: company.vehicles.length - vehiclesCheckedToday > 0 ? "#DC2626" : "#059669" }}>{company.vehicles.length - vehiclesCheckedToday}</div>
-                <div style={{ fontSize: "11px", color: "#6B7280" }}>Missing today</div>
-              </div>
-            </div>
-            <div style={{ background: "white", borderRadius: "14px", border: "1px solid #E2E8F0" }}>
-              {company.recentChecks.map((ch, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 18px", borderBottom: i < company.recentChecks.length - 1 ? "1px solid #F3F4F6" : "none" }}>
-                  <span style={{ fontSize: "18px" }}>{ch.result === "pass" ? "✅" : "⚠️"}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#0F172A" }}>{ch.driver} <span style={{ color: "#94A3B8", fontWeight: 400 }}>checked</span> <span style={{ fontFamily: "monospace" }}>{ch.vehicle}</span></div>
-                    {ch.defects > 0 && <div style={{ fontSize: "11px", color: "#DC2626", fontWeight: 700 }}>{ch.defects} defect reported</div>}
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151" }}>{formatDate(ch.date)}</div>
-                    <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px", background: ch.result === "pass" ? "#ECFDF5" : "#FEF2F2", color: ch.result === "pass" ? "#059669" : "#DC2626" }}>{ch.result === "pass" ? "PASS" : "FAIL"}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ========== DEFECTS TAB ========== */}
-        {activeTab === "defects" && (
-          <div style={{ animation: "fadeIn 0.3s ease" }}>
-            {openDefects.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {company.defects.map(d => {
-                  const sevColors = { dangerous: "#DC2626", major: "#F97316", minor: "#F59E0B" };
-                  const stColors = { open: "#DC2626", in_progress: "#F59E0B", rectified: "#2563EB", closed: "#10B981" };
-                  return (
-                    <div key={d.id} style={{ background: "white", borderRadius: "14px", padding: "18px 20px", border: `1.5px solid ${d.status === "open" ? "#FECACA" : "#E2E8F0"}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 700, color: "#64748B" }}>{d.id}</span>
-                          <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 800, color: "#0F172A" }}>{d.vehicleReg}</span>
-                          <span style={{ padding: "2px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: 800, background: sevColors[d.severity], color: "white" }}>{d.severity.toUpperCase()}</span>
-                        </div>
-                        <span style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", fontWeight: 700, color: stColors[d.status], background: stColors[d.status] + "18", border: `1px solid ${stColors[d.status]}44`, textTransform: "uppercase" }}>{d.status.replace("_", " ")}</span>
+                  <div style={{ height: "3px", background: isArch ? "#9CA3AF" : RISK[risk].dot }} />
+                  <div style={{ padding: "18px 22px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                      <div>
+                        <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#111827", margin: 0 }}>{c.name}</h3>
+                        <div style={{ fontSize: "12px", color: "#6B7280", fontFamily: "monospace", marginTop: "2px" }}>{c.o_licence}</div>
                       </div>
-                      <p style={{ fontSize: "13px", color: "#374151", lineHeight: 1.5, margin: 0 }}>{d.description}</p>
-                      <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "6px" }}>{d.category} • Opened {formatDate(d.date)}</div>
+                      {isArch ? <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#F3F4F6", fontSize: "10px", fontWeight: 700, color: "#6B7280" }}>ARCHIVED</span> : <RiskPill level={risk} />}
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: "48px 20px", background: "white", borderRadius: "16px", border: "1px solid #E2E8F0" }}>
-                <span style={{ fontSize: "36px", display: "block", marginBottom: "12px" }}>✅</span>
-                <div style={{ fontSize: "15px", fontWeight: 700, color: "#059669" }}>No open defects</div>
-                <div style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>All vehicles in good standing</div>
-              </div>
-            )}
+                    <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#6B7280", flexWrap: "wrap" }}>
+                      <span>{"\u{1F69B}"} {vCount} vehicles</span>
+                      <span>{"\u{1F4CD}"} {c.operating_centre?.split(",")[0]}</span>
+                      <span>{"\u{1F4DE}"} {c.phone}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", marginTop: "12px" }} onClick={e => e.stopPropagation()}>
+                      {isArch ? (
+                        <Btn onClick={() => restoreCompany(c.id)} style={{ borderColor: "#6EE7B7", background: "#ECFDF5", color: "#065F46" }}>{"\u{1F504}"} Restore</Btn>
+                      ) : (<>
+                        <Btn onClick={() => setCompanyForm(c)}>{"\u270F\uFE0F"} Edit</Btn>
+                        <Btn onClick={() => setConfirm({ title: "Archive Company?", message: `"${c.name}" will be hidden from your active list. You can restore it anytime.`, icon: "\u{1F4E6}", confirmLabel: "Archive", confirmColor: "#D97706", onConfirm: () => archiveCompany(c.id) })} style={{ borderColor: "#FDE68A", background: "#FFFBEB", color: "#92400E" }}>{"\u{1F4E6}"} Archive</Btn>
+                      </>)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
+
+          {selected && !selected.archived_at && (
+            <div style={{ position: "sticky", top: "88px", alignSelf: "start" }}>
+              <div style={{ background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E5E7EB", overflow: "hidden" }}>
+                <div style={{ padding: "24px 28px", background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <h2 style={{ fontSize: "20px", fontWeight: 800, margin: 0 }}>{selected.name}</h2>
+                      <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "4px" }}>{"\u{1F4CB}"} {selected.o_licence} {"\u00B7"} {"\u{1F4CD}"} {selected.operating_centre}</div>
+                      <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "2px" }}>{"\u{1F4DE}"} {selected.phone} {"\u00B7"} {"\u{1F4E7}"} {selected.email}</div>
+                    </div>
+                    <button onClick={() => setSelectedId(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "8px", padding: "6px 12px", color: "white", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>{"\u2715"}</button>
+                  </div>
+                  <div style={{ display: "flex", gap: "16px", marginTop: "14px" }}>
+                    {[{ l: "Auth. Vehicles", v: selected.authorised_vehicles }, { l: "Auth. Trailers", v: selected.authorised_trailers }, { l: "Licence Expiry", v: formatDate(selected.licence_expiry) }].map(s => (
+                      <div key={s.l} style={{ padding: "8px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.08)" }}>
+                        <div style={{ fontSize: "10px", opacity: 0.6 }}>{s.l}</div>
+                        <div style={{ fontSize: "14px", fontWeight: 700, marginTop: "2px" }}>{s.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ padding: "20px 24px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#0F172A", margin: 0 }}>Active Fleet ({selectedVehiclesActive.length})</h3>
+                    <Btn onClick={() => setVehicleForm(false)} style={{ background: "#0F172A", color: "white", border: "none" }}>{"\u2795"} Add Vehicle</Btn>
+                  </div>
+
+                  {selectedVehiclesActive.length === 0 ? <div style={{ textAlign: "center", padding: "24px", color: "#94A3B8", fontSize: "13px" }}>No vehicles. Add one above.</div> :
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {selectedVehiclesActive.map(v => {
+                      const worstDays = Math.min(...["mot_due","pmi_due","insurance_due","tacho_due","service_due"].map(k => getDaysUntil(v[k]) ?? 9999));
+                      const risk = getRisk(worstDays);
+                      return (
+                        <div key={v.id} style={{ padding: "14px 16px", borderRadius: "12px", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "20px" }}>{TYPES[v.type]}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: "14px", color: "#111827", fontFamily: "monospace" }}>{v.reg}</div>
+                            <div style={{ fontSize: "11px", color: "#6B7280" }}>{v.make} {v.model} {"\u00B7"} {v.type}</div>
+                          </div>
+                          <RiskPill level={risk} />
+                          <Btn onClick={() => setVehicleForm(v)} style={{ padding: "4px 8px", fontSize: "10px" }}>{"\u270F\uFE0F"}</Btn>
+                          <Btn onClick={() => setConfirm({ title: "Archive Vehicle?", message: `${v.reg} will be removed from the active fleet. Restore anytime.`, icon: "\u{1F4E6}", confirmLabel: "Archive", confirmColor: "#D97706", onConfirm: () => archiveVehicle(v.id) })} style={{ padding: "4px 8px", fontSize: "10px", borderColor: "#FDE68A", background: "#FFFBEB", color: "#92400E" }}>{"\u{1F4E6}"}</Btn>
+                        </div>
+                      );
+                    })}
+                  </div>}
+
+                  {selectedVehiclesArchived.length > 0 && (
+                    <div style={{ marginTop: "20px" }}>
+                      <h4 style={{ fontSize: "12px", fontWeight: 700, color: "#6B7280", marginBottom: "8px" }}>{"\u{1F4E6}"} Archived Vehicles ({selectedVehiclesArchived.length})</h4>
+                      {selectedVehiclesArchived.map(v => (
+                        <div key={v.id} style={{ padding: "10px 14px", borderRadius: "10px", background: "#F9FAFB", border: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px", opacity: 0.7 }}>
+                          <span style={{ fontSize: "16px" }}>{TYPES[v.type]}</span>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontWeight: 700, fontSize: "13px", fontFamily: "monospace", color: "#6B7280" }}>{v.reg}</span>
+                            <span style={{ fontSize: "11px", color: "#9CA3AF", marginLeft: "8px" }}>{v.make} {v.model}</span>
+                          </div>
+                          <Btn onClick={() => restoreVehicle(v.id)} style={{ padding: "4px 10px", fontSize: "10px", borderColor: "#6EE7B7", background: "#ECFDF5", color: "#065F46" }}>{"\u{1F504}"} Restore</Btn>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
 
-      <footer style={{ textAlign: "center", padding: "24px 20px", marginTop: "40px", borderTop: "1px solid #E2E8F0", color: "#94A3B8", fontSize: "11px" }}>
-        ComplyFleet v1.0 • DVSA Compliance Management Platform • © 2026
-      </footer>
+      <footer style={{ textAlign: "center", padding: "24px 20px", marginTop: "40px", borderTop: "1px solid #E2E8F0", color: "#94A3B8", fontSize: "11px" }}>ComplyFleet v1.0 {"\u00B7"} DVSA Compliance Platform {"\u00B7"} {"\u00A9"} 2026</footer>
+
+      {companyForm !== null && <CompanyFormModal company={companyForm || null} onSave={saveCompany} onClose={() => setCompanyForm(null)} />}
+      {vehicleForm !== null && <VehicleFormModal vehicle={vehicleForm || null} companyId={selectedId} onSave={saveVehicle} onClose={() => setVehicleForm(null)} />}
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );
 }
