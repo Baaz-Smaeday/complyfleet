@@ -176,17 +176,38 @@ export default function ComplyFleetCompany() {
   const [confirm, setConfirm] = useState(null);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   const flash = (message, type = "success") => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (isSupabaseReady()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) { window.location.href = "/login"; return; }
+        supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
+          if (data) { setProfile(data); loadData(data); }
+        });
+      });
+    } else { loadData(null); }
+  }, []);
 
-  async function loadData() {
+  async function loadData(userProfile) {
     setLoading(true);
     if (isSupabaseReady()) {
-      const [cRes, vRes, dRes] = await Promise.all([
-        supabase.from("companies").select("*").order("name"),
-        supabase.from("vehicles").select("*").order("reg"),
+      // TMs only see their linked companies
+      let companyIds = null;
+      if (userProfile && userProfile.role === "tm") {
+        const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
+        companyIds = (links || []).map(l => l.company_id);
+      }
+
+      let cQuery = supabase.from("companies").select("*").order("name");
+      if (companyIds) cQuery = cQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      let vQuery = supabase.from("vehicles").select("*").order("reg");
+      if (companyIds) vQuery = vQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      const [cRes, vRes, dRes] = await Promise.all([cQuery, vQuery,
         supabase.from("defects").select("*").in("status", ["open", "in_progress"]),
       ]);
       setCompanies(cRes.data || []); setVehicles(vRes.data || []); setDefects(dRes.data || []);
@@ -199,8 +220,14 @@ export default function ComplyFleetCompany() {
   async function saveCompany(form, editId) {
     if (isSupabaseReady()) {
       if (editId) { await supabase.from("companies").update(form).eq("id", editId); }
-      else { await supabase.from("companies").insert({ ...form, licence_status: "Valid" }); }
-      await loadData();
+      else {
+        const { data: newCompany } = await supabase.from("companies").insert({ ...form, licence_status: "Valid" }).select().single();
+        // Auto-link to current TM
+        if (newCompany && profile && (profile.role === "tm" || profile.role === "platform_owner")) {
+          await supabase.from("tm_companies").insert({ tm_id: profile.id, company_id: newCompany.id });
+        }
+      }
+      await loadData(profile);
     } else {
       if (editId) setCompanies(prev => prev.map(c => c.id === editId ? { ...c, ...form } : c));
       else setCompanies(prev => [...prev, { ...form, id: "c" + Date.now(), archived_at: null, licence_status: "Valid" }]);
@@ -210,13 +237,13 @@ export default function ComplyFleetCompany() {
 
   async function archiveCompany(id) {
     const ts = new Date().toISOString();
-    if (isSupabaseReady()) { await supabase.from("companies").update({ archived_at: ts }).eq("id", id); await loadData(); }
+    if (isSupabaseReady()) { await supabase.from("companies").update({ archived_at: ts }).eq("id", id); await loadData(profile); }
     else setCompanies(prev => prev.map(c => c.id === id ? { ...c, archived_at: ts } : c));
     flash("Company archived"); setConfirm(null); if (selectedId === id) setSelectedId(null);
   }
 
   async function restoreCompany(id) {
-    if (isSupabaseReady()) { await supabase.from("companies").update({ archived_at: null }).eq("id", id); await loadData(); }
+    if (isSupabaseReady()) { await supabase.from("companies").update({ archived_at: null }).eq("id", id); await loadData(profile); }
     else setCompanies(prev => prev.map(c => c.id === id ? { ...c, archived_at: null } : c));
     flash("Company restored");
   }
@@ -225,7 +252,7 @@ export default function ComplyFleetCompany() {
     if (isSupabaseReady()) {
       if (editId) { await supabase.from("vehicles").update(form).eq("id", editId); }
       else { await supabase.from("vehicles").insert(form); }
-      await loadData();
+      await loadData(profile);
     } else {
       if (editId) setVehicles(prev => prev.map(v => v.id === editId ? { ...v, ...form } : v));
       else setVehicles(prev => [...prev, { ...form, id: "v" + Date.now(), archived_at: null }]);
@@ -235,13 +262,13 @@ export default function ComplyFleetCompany() {
 
   async function archiveVehicle(id) {
     const ts = new Date().toISOString();
-    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: ts }).eq("id", id); await loadData(); }
+    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: ts }).eq("id", id); await loadData(profile); }
     else setVehicles(prev => prev.map(v => v.id === id ? { ...v, archived_at: ts } : v));
     flash("Vehicle archived"); setConfirm(null);
   }
 
   async function restoreVehicle(id) {
-    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: null }).eq("id", id); await loadData(); }
+    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: null }).eq("id", id); await loadData(profile); }
     else setVehicles(prev => prev.map(v => v.id === id ? { ...v, archived_at: null } : v));
     flash("Vehicle restored");
   }
