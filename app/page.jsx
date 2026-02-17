@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase, isSupabaseReady } from "../lib/supabase";
 
 const SCREENS = [
   {
@@ -84,6 +85,23 @@ const ROLE_COLORS = {
 };
 
 export default function HomePage() {
+  // Redirect based on auth
+  useEffect(() => {
+    if (!isSupabaseReady()) return;
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { window.location.href = "/login"; return; }
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single();
+      if (!profile) return;
+      switch (profile.role) {
+        case "platform_owner": window.location.href = "/admin"; break;
+        case "tm": window.location.href = "/dashboard"; break;
+        case "company_admin":
+        case "company_viewer": window.location.href = "/portal"; break;
+        default: break;
+      }
+    });
+  }, []);
+
   return (
     <div style={{
       minHeight: "100vh", background: "#F1F5F9",
