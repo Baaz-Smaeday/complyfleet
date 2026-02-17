@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { supabase, isSupabaseReady } from "../../lib/supabase";
+import { supabase, isSupabaseReady } from "../lib/supabase";
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "\u2014";
 
