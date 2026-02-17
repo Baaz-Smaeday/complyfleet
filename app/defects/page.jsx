@@ -171,19 +171,34 @@ export default function ComplyFleetDefects() {
   const [confirm, setConfirm] = useState(null);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   const flash = (msg, type = "success") => { setToast({ message: msg, type }); setTimeout(() => setToast(null), 3000); };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("status")) setFilter(params.get("status"));
-    loadData();
+    if (isSupabaseReady()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) { window.location.href = "/login"; return; }
+        supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
+          if (data) { setProfile(data); loadData(data); }
+        });
+      });
+    } else { loadData(null); }
   }, []);
 
-  async function loadData() {
+  async function loadData(userProfile) {
     setLoading(true);
     if (isSupabaseReady()) {
-      const { data: defs } = await supabase.from("defects").select("*").order("reported_date", { ascending: false });
+      let companyIds = null;
+      if (userProfile && userProfile.role === "tm") {
+        const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
+        companyIds = (links || []).map(l => l.company_id);
+      }
+      let dQuery = supabase.from("defects").select("*").order("reported_date", { ascending: false });
+      if (companyIds) dQuery = dQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      const { data: defs } = await dQuery;
       if (defs) {
         for (let d of defs) {
           const { data: notes } = await supabase.from("defect_notes").select("*").eq("defect_id", d.id).order("created_at");
@@ -201,7 +216,7 @@ export default function ComplyFleetDefects() {
     const newDef = { ...form, status: "open", reported_date: new Date().toISOString().split("T")[0] };
     if (isSupabaseReady()) {
       await supabase.from("defects").insert(newDef);
-      await loadData();
+      await loadData(profile);
     } else {
       setDefects(prev => [{ ...newDef, id: "d" + Date.now(), notes: [] }, ...prev]);
     }
@@ -215,7 +230,7 @@ export default function ComplyFleetDefects() {
 
     if (isSupabaseReady()) {
       await supabase.from("defects").update(updates).eq("id", id);
-      await loadData();
+      await loadData(profile);
     } else {
       setDefects(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
     }
@@ -227,7 +242,7 @@ export default function ComplyFleetDefects() {
     const note = { author: "James Henderson", text, created_at: new Date().toISOString().split("T")[0] };
     if (isSupabaseReady()) {
       await supabase.from("defect_notes").insert({ defect_id: defectId, ...note });
-      await loadData();
+      await loadData(profile);
     } else {
       setDefects(prev => prev.map(d => d.id === defectId ? { ...d, notes: [...(d.notes || []), note] } : d));
     }
@@ -393,3 +408,4 @@ export default function ComplyFleetDefects() {
     </div>
   );
 }
+
