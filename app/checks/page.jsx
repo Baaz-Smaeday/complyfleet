@@ -58,22 +58,36 @@ export default function ChecksPage() {
   const [filterCompany, setFilterCompany] = useState("all");
   const [filterResult, setFilterResult] = useState("all");
   const [filterRange, setFilterRange] = useState("30d");
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("range")) setFilterRange(params.get("range"));
     if (params.get("company")) setFilterCompany(params.get("company"));
     if (params.get("result")) setFilterResult(params.get("result"));
-    loadData();
+    if (isSupabaseReady()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) { window.location.href = "/login"; return; }
+        supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
+          if (data) { setProfile(data); loadData(data); }
+        });
+      });
+    } else { loadData(null); }
   }, []);
 
-  async function loadData() {
+  async function loadData(userProfile) {
     setLoading(true);
     if (isSupabaseReady()) {
-      const [chRes, coRes] = await Promise.all([
-        supabase.from("walkaround_checks").select("*").order("completed_at", { ascending: false }).limit(200),
-        supabase.from("companies").select("id, name").is("archived_at", null).order("name"),
-      ]);
+      let companyIds = null;
+      if (userProfile && userProfile.role === "tm") {
+        const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
+        companyIds = (links || []).map(l => l.company_id);
+      }
+      let chQuery = supabase.from("walkaround_checks").select("*").order("completed_at", { ascending: false }).limit(200);
+      if (companyIds) chQuery = chQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      let coQuery = supabase.from("companies").select("id, name").is("archived_at", null).order("name");
+      if (companyIds) coQuery = coQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      const [chRes, coRes] = await Promise.all([chQuery, coQuery]);
       setChecks(chRes.data || []);
       setCompanies(coRes.data || []);
     }
@@ -152,7 +166,9 @@ export default function ChecksPage() {
               </tr></thead>
               <tbody>
                 {filtered.map(ch => (
-                  <tr key={ch.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                  <tr key={ch.id} style={{ borderBottom: "1px solid #F3F4F6", cursor: "pointer", transition: "all 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = ""}
+                    onClick={(e) => { if (e.target.tagName === "BUTTON") return; downloadCheckPDF(ch); }}>
                     <td style={{ padding: "14px", fontFamily: "monospace", fontSize: "12px", fontWeight: 600, color: "#374151" }}>{ch.reference_id}</td>
                     <td style={{ padding: "14px" }}>
                       <div style={{ fontWeight: 700, fontSize: "14px", fontFamily: "monospace", color: "#0F172A" }}>{ch.vehicle_reg}</div>
