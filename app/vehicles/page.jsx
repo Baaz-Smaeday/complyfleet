@@ -94,6 +94,7 @@ export default function ComplyFleetVehicle() {
   const [confirm, setConfirm] = useState(null);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   const [riskFilter, setRiskFilter] = useState("all"); // all, overdue, due7, compliant
 
@@ -104,15 +105,30 @@ export default function ComplyFleetVehicle() {
     if (params.get("filter")) setRiskFilter(params.get("filter"));
     if (params.get("showArchived") === "1") setShowArchived(true);
     if (params.get("company")) setSelectedCompany(params.get("company"));
-    loadData();
+    if (isSupabaseReady()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) { window.location.href = "/login"; return; }
+        supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
+          if (data) { setProfile(data); loadData(data); }
+        });
+      });
+    } else { loadData(null); }
   }, []);
 
-  async function loadData() {
+  async function loadData(userProfile) {
     setLoading(true);
     if (isSupabaseReady()) {
-      const { data: cos } = await supabase.from("companies").select("*").is("archived_at", null).order("name");
-      const { data: vehs } = await supabase.from("vehicles").select("*").order("reg");
-      setCompanies(cos || []); setVehicles(vehs || []);
+      let companyIds = null;
+      if (userProfile && userProfile.role === "tm") {
+        const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
+        companyIds = (links || []).map(l => l.company_id);
+      }
+      let cQuery = supabase.from("companies").select("*").is("archived_at", null).order("name");
+      if (companyIds) cQuery = cQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      let vQuery = supabase.from("vehicles").select("*").order("reg");
+      if (companyIds) vQuery = vQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      const [cRes, vRes] = await Promise.all([cQuery, vQuery]);
+      setCompanies(cRes.data || []); setVehicles(vRes.data || []);
     } else {
       setCompanies([{ id: "c1", name: "Hargreaves Haulage Ltd" }, { id: "c2", name: "Northern Express Transport" }, { id: "c3", name: "Yorkshire Fleet Services" }, { id: "c4", name: "Pennine Logistics Group" }]);
       setVehicles([
@@ -135,7 +151,7 @@ export default function ComplyFleetVehicle() {
 
     if (isSupabaseReady()) {
       await supabase.from("vehicles").update(updates).eq("id", form.id);
-      await loadData();
+      await loadData(profile);
     } else {
       setVehicles(prev => prev.map(v => v.id === form.id ? { ...v, ...updates } : v));
     }
@@ -144,13 +160,13 @@ export default function ComplyFleetVehicle() {
 
   async function archiveVehicle(id, reg) {
     const ts = new Date().toISOString();
-    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: ts }).eq("id", id); await loadData(); }
+    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: ts }).eq("id", id); await loadData(profile); }
     else setVehicles(prev => prev.map(v => v.id === id ? { ...v, archived_at: ts } : v));
     flash(`${reg} archived`); setConfirm(null);
   }
 
   async function restoreVehicle(id, reg) {
-    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: null }).eq("id", id); await loadData(); }
+    if (isSupabaseReady()) { await supabase.from("vehicles").update({ archived_at: null }).eq("id", id); await loadData(profile); }
     else setVehicles(prev => prev.map(v => v.id === id ? { ...v, archived_at: null } : v));
     flash(`${reg} restored`);
   }
@@ -305,3 +321,4 @@ export default function ComplyFleetVehicle() {
     </div>
   );
 }
+
