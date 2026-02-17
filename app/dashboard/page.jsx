@@ -57,8 +57,21 @@ export default function ComplyFleetDashboard() {
   const [checks, setChecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState("all");
+  const [profile, setProfile] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    // Auth check
+    if (isSupabaseReady()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) { window.location.href = "/login"; return; }
+        supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
+          if (data) setProfile(data);
+        });
+      });
+    }
+    loadData();
+  }, []);
 
   async function loadData() {
     setLoading(true);
@@ -109,10 +122,30 @@ export default function ComplyFleetDashboard() {
           <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>{"\u{1F69B}"}</div>
           <span style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Comply<span style={{ color: "#60A5FA" }}>Fleet</span></span>
         </a>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {!isSupabaseReady() && <span style={{ padding: "4px 10px", borderRadius: "6px", background: "rgba(251,191,36,0.2)", color: "#FCD34D", fontSize: "10px", fontWeight: 700 }}>DEMO MODE</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", position: "relative" }}>
           <span style={{ color: "#94A3B8", fontSize: "12px" }}>{formatDate(TODAY)}</span>
-          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "13px" }}>JH</div>
+          <button onClick={() => setShowUserMenu(!showUserMenu)} style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: "pointer", padding: "4px" }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ color: "white", fontSize: "12px", fontWeight: 600 }}>{profile?.full_name || "User"}</div>
+              <div style={{ color: "#64748B", fontSize: "10px", textTransform: "uppercase" }}>{(profile?.role || "").replace("_", " ")}</div>
+            </div>
+            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "13px" }}>{profile?.full_name ? profile.full_name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2) : "??"}</div>
+          </button>
+          {showUserMenu && (
+            <div style={{ position: "absolute", right: 0, top: "52px", background: "white", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.15)", padding: "8px", minWidth: "200px", zIndex: 200 }}>
+              <div style={{ padding: "10px 14px", borderBottom: "1px solid #F3F4F6" }}>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#111827" }}>{profile?.full_name}</div>
+                <div style={{ fontSize: "11px", color: "#6B7280" }}>{profile?.email}</div>
+                <div style={{ fontSize: "10px", color: "#2563EB", fontWeight: 600, textTransform: "uppercase", marginTop: "4px" }}>{(profile?.role || "").replace("_", " ")}</div>
+              </div>
+              {profile?.role === "platform_owner" && (
+                <a href="/admin" style={{ display: "block", padding: "10px 14px", fontSize: "13px", fontWeight: 600, color: "#374151", textDecoration: "none", borderRadius: "8px" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#F1F5F9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>{"\u{1F6E0}\uFE0F"} Super Admin</a>
+              )}
+              <button onClick={async () => { await supabase.auth.signOut(); window.location.href = "/login"; }} style={{ width: "100%", padding: "10px 14px", border: "none", background: "none", textAlign: "left", fontSize: "13px", fontWeight: 600, color: "#DC2626", cursor: "pointer", borderRadius: "8px", fontFamily: "inherit" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "none"}>{"\u{1F6AA}"} Sign Out</button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -263,7 +296,6 @@ export default function ComplyFleetDashboard() {
               { href: "/vehicles", icon: "\u{1F69B}", label: "Vehicle Compliance", desc: "MOT, PMI, insurance dates" },
               { href: "/checks", icon: "\u{1F4CB}", label: "Walkaround Checks", desc: "View all checks across companies" },
               { href: "/qr-codes", icon: "\u{1F4F1}", label: "QR Codes", desc: "Generate vehicle QR codes" },
-              { href: "/magic-links", icon: "\u{1F517}", label: "Magic Links", desc: "Share check links" },
             ].map(l => (
               <a key={l.href} href={l.href} style={{ background: "#FFF", padding: "18px 20px", borderRadius: "14px", border: "1px solid #E5E7EB", textDecoration: "none", display: "flex", alignItems: "center", gap: "14px", transition: "all 0.15s" }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.06)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
