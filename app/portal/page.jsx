@@ -59,12 +59,25 @@ export default function CompanyPortal() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      // Check URL for company param
       const params = new URLSearchParams(window.location.search);
       const cid = params.get("company");
 
       if (isSupabaseReady()) {
-        const { data: cos } = await supabase.from("companies").select("*").is("archived_at", null).order("name");
+        // Get user profile to filter by TM
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { window.location.href = "/login"; return; }
+        const { data: prof } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+
+        let companyIds = null;
+        if (prof && prof.role === "tm") {
+          const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", prof.id);
+          companyIds = (links || []).map(l => l.company_id);
+        }
+
+        let cQuery = supabase.from("companies").select("*").is("archived_at", null).order("name");
+        if (companyIds) cQuery = cQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+
+        const { data: cos } = await cQuery;
         setCompanies(cos || []);
         if (cid) {
           const co = (cos || []).find(c => c.id === cid);
