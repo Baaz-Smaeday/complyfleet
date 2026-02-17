@@ -83,14 +83,29 @@ export default function ComplyFleetQRCodes() {
 
   useEffect(() => {
     if (typeof window !== "undefined") setBaseUrl(window.location.origin);
-    loadData();
+    if (isSupabaseReady()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) { window.location.href = "/login"; return; }
+        supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
+          loadData(data);
+        });
+      });
+    } else { loadData(null); }
   }, []);
 
-  async function loadData() {
+  async function loadData(userProfile) {
     setLoading(true);
     if (isSupabaseReady()) {
-      const { data: cos } = await supabase.from("companies").select("id, name").is("archived_at", null).order("name");
-      const { data: vehs } = await supabase.from("vehicles").select("*").is("archived_at", null).order("reg");
+      let companyIds = null;
+      if (userProfile && userProfile.role === "tm") {
+        const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
+        companyIds = (links || []).map(l => l.company_id);
+      }
+      let cQuery = supabase.from("companies").select("id, name").is("archived_at", null).order("name");
+      if (companyIds) cQuery = cQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      let vQuery = supabase.from("vehicles").select("*").is("archived_at", null).order("reg");
+      if (companyIds) vQuery = vQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      const [{ data: cos }, { data: vehs }] = await Promise.all([cQuery, vQuery]);
       setCompanies(cos || []);
       if (vehs && cos) {
         const cMap = {};
