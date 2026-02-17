@@ -219,7 +219,8 @@ export default function ComplyFleetDashboard() {
                 <div style={{ padding: "12px" }}>
                   {urgentVehicles.length === 0 ? <div style={{ textAlign: "center", padding: "24px", color: "#94A3B8", fontSize: "13px" }}>All vehicles compliant</div> :
                   urgentVehicles.map(v => (
-                    <div key={v.id} style={{ padding: "12px 16px", borderRadius: "12px", border: `1px solid ${RISK[v.risk].border}`, background: RISK[v.risk].bg, marginBottom: "8px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <a key={v.id} href="/vehicles" style={{ display: "flex", padding: "12px 16px", borderRadius: "12px", border: `1px solid ${RISK[v.risk].border}`, background: RISK[v.risk].bg, marginBottom: "8px", alignItems: "center", gap: "12px", textDecoration: "none", color: "inherit", transition: "all 0.15s", cursor: "pointer" }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)"; }} onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
                       <span style={{ fontSize: "20px" }}>{TYPES[v.type]}</span>
                       <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: "14px", fontFamily: "monospace", color: "#111827" }}>{v.reg}</div><div style={{ fontSize: "11px", color: "#6B7280" }}>{v.make} {v.model}</div></div>
                       <div style={{ textAlign: "right" }}>
@@ -227,7 +228,7 @@ export default function ComplyFleetDashboard() {
                         <div style={{ fontSize: "11px", color: "#6B7280" }}>{formatDate(v[v.worstField])}</div>
                       </div>
                       <RiskPill level={v.risk} />
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -247,14 +248,15 @@ export default function ComplyFleetDashboard() {
                 <div style={{ padding: "12px" }}>
                   {filteredDefects.length === 0 ? <div style={{ textAlign: "center", padding: "24px", color: "#10B981", fontSize: "13px", fontWeight: 600 }}>{"\u2705"} No open defects</div> :
                   filteredDefects.slice(0, 8).map(d => (
-                    <div key={d.id} style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid #E5E7EB", marginBottom: "8px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <a key={d.id} href="/defects" style={{ display: "flex", padding: "12px 16px", borderRadius: "12px", border: "1px solid #E5E7EB", marginBottom: "8px", alignItems: "center", gap: "12px", textDecoration: "none", color: "inherit", transition: "all 0.15s", cursor: "pointer" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.borderColor = "#FECACA"; }} onMouseLeave={e => { e.currentTarget.style.background = ""; e.currentTarget.style.borderColor = "#E5E7EB"; }}>
                       <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: STATUS_COLORS[d.status], flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: "13px", fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.description}</div>
                         <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>{TYPES[d.vehicle_type]} {d.vehicle_reg} {"\u00B7"} {d.category}</div>
                       </div>
                       <SevPill level={d.severity} />
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -271,7 +273,8 @@ export default function ComplyFleetDashboard() {
                 <div style={{ padding: "12px" }}>
                   {checks.length === 0 ? <div style={{ textAlign: "center", padding: "24px", color: "#94A3B8", fontSize: "13px" }}>No checks yet</div> :
                   checks.slice(0, 8).map(ch => (
-                    <div key={ch.id} style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid #E5E7EB", marginBottom: "8px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <a key={ch.id} href="/checks" style={{ display: "flex", padding: "12px 16px", borderRadius: "12px", border: "1px solid #E5E7EB", marginBottom: "8px", alignItems: "center", gap: "12px", textDecoration: "none", color: "inherit", transition: "all 0.15s", cursor: "pointer" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.borderColor = "#3B82F6"; }} onMouseLeave={e => { e.currentTarget.style.background = ""; e.currentTarget.style.borderColor = "#E5E7EB"; }}>
                       <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: ch.result === "pass" ? "#ECFDF5" : "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>{ch.result === "pass" ? "\u2705" : "\u26A0\uFE0F"}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: "13px", fontWeight: 600, color: "#111827" }}>{ch.vehicle_reg} {"\u2014"} {ch.driver_name}</div>
@@ -281,7 +284,7 @@ export default function ComplyFleetDashboard() {
                         <span style={{ padding: "3px 10px", borderRadius: "20px", background: ch.result === "pass" ? "#ECFDF5" : "#FEF2F2", border: `1px solid ${ch.result === "pass" ? "#A7F3D0" : "#FECACA"}`, fontSize: "10px", fontWeight: 700, color: ch.result === "pass" ? "#059669" : "#DC2626" }}>{ch.result === "pass" ? "SAFE" : "DEFECTS"}</span>
                         <div style={{ fontSize: "10px", color: "#94A3B8", marginTop: "4px" }}>{formatDate(ch.completed_at)}</div>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>
