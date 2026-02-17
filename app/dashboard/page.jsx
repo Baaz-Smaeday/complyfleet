@@ -61,27 +61,39 @@ export default function ComplyFleetDashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
-    // Auth check
     if (isSupabaseReady()) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) { window.location.href = "/login"; return; }
         supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
-          if (data) setProfile(data);
+          if (data) { setProfile(data); loadData(data); }
         });
       });
-    }
-    loadData();
+    } else { loadData(null); }
   }, []);
 
-  async function loadData() {
+  async function loadData(userProfile) {
     setLoading(true);
     if (isSupabaseReady()) {
-      const [cRes, vRes, dRes, chRes] = await Promise.all([
-        supabase.from("companies").select("*").is("archived_at", null).order("name"),
-        supabase.from("vehicles").select("*").is("archived_at", null).order("reg"),
-        supabase.from("defects").select("*").in("status", ["open", "in_progress"]).order("reported_date", { ascending: false }),
-        supabase.from("walkaround_checks").select("*").order("completed_at", { ascending: false }).limit(20),
-      ]);
+      // If user is a TM, only load their linked companies
+      let companyIds = null;
+      if (userProfile && userProfile.role === "tm") {
+        const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
+        companyIds = (links || []).map(l => l.company_id);
+      }
+
+      let cQuery = supabase.from("companies").select("*").is("archived_at", null).order("name");
+      if (companyIds) cQuery = cQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      let vQuery = supabase.from("vehicles").select("*").is("archived_at", null).order("reg");
+      if (companyIds) vQuery = vQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      let dQuery = supabase.from("defects").select("*").in("status", ["open", "in_progress"]).order("reported_date", { ascending: false });
+      if (companyIds) dQuery = dQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      let chQuery = supabase.from("walkaround_checks").select("*").order("completed_at", { ascending: false }).limit(20);
+      if (companyIds) chQuery = chQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      const [cRes, vRes, dRes, chRes] = await Promise.all([cQuery, vQuery, dQuery, chQuery]);
       setCompanies(cRes.data || []);
       setVehicles(vRes.data || []);
       setDefects(dRes.data || []);
@@ -314,3 +326,4 @@ export default function ComplyFleetDashboard() {
     </div>
   );
 }
+
