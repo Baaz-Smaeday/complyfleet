@@ -69,7 +69,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError("");
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + "/login"
+      redirectTo: window.location.origin + "/reset-password"
     });
     if (err) { setError(err.message); setLoading(false); return; }
     setMessage("Password reset link sent to your email");
@@ -207,3 +207,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
