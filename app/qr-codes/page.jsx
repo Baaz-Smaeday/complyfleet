@@ -47,7 +47,9 @@ function QRCard({ vehicle, baseUrl }) {
       background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E5E7EB",
       overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       transition: "all 0.2s", cursor: "default",
-    }}>
+    }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; }}>
       <div style={{ height: "3px", background: vehicle.type === "HGV" ? "#2563EB" : vehicle.type === "Van" ? "#10B981" : "#F59E0B" }} />
       <div style={{ padding: "24px", textAlign: "center" }}>
         <img src={qrUrl} width="160" height="160" alt={`QR for ${vehicle.reg}`} style={{ borderRadius: "8px", border: "1px solid #F3F4F6" }} />
@@ -199,3 +201,4 @@ export default function ComplyFleetQRCodes() {
     </div>
   );
 }
+
