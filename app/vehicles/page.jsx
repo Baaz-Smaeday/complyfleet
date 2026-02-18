@@ -272,8 +272,8 @@ export default function ComplyFleetVehicle() {
                 {loading ? <tr><td colSpan={9} style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>Loading...</td></tr> :
                 filtered.length === 0 ? <tr><td colSpan={9} style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>No vehicles match filters</td></tr> :
                 filtered.map(v => (
-                  <tr key={v.id} style={{ borderBottom: "1px solid #F3F4F6", opacity: v.archived_at ? 0.6 : 1 }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = ""}>
+                  <tr key={v.id} style={{ borderBottom: "1px solid #F3F4F6", opacity: v.archived_at ? 0.6 : 1, cursor: "pointer", transition: "all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.transform = "translateX(2px)"; }} onMouseLeave={e => { e.currentTarget.style.background = ""; e.currentTarget.style.transform = ""; }}>
                     <td style={{ padding: "14px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <span style={{ fontSize: "20px" }}>{TYPES[v.type]}</span>
@@ -321,4 +321,3 @@ export default function ComplyFleetVehicle() {
     </div>
   );
 }
-
