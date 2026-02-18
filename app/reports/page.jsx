@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
+import Script from "next/script";
 
 // Dynamic import — generate-pdf uses browser APIs
 let pdfLib = null;
@@ -199,6 +200,7 @@ export default function ReportsPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F1F5F9", fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif" }}>
+      <Script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js" strategy="afterInteractive" />
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
 
