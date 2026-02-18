@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.1";
+const VERSION = "v5.3";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -97,6 +97,8 @@ export default function SuperAdmin() {
   async function unlinkCompany(tid, cid) { await supabase.from("tm_companies").delete().match({ tm_id: tid, company_id: cid }); flash("Unlinked"); loadData(); }
   async function activateUser(uid) { await supabase.from("profiles").update({ subscription_status: "active", trial_ends_at: null }).eq("id", uid); flash("Activated"); loadData(); }
   async function expireUser(uid) { await supabase.from("profiles").update({ subscription_status: "expired" }).eq("id", uid); flash("Expired"); loadData(); }
+  async function setCompanyStatus(cid, status) { await supabase.from("companies").update({ status }).eq("id", cid); flash("Company → " + status); loadData(); }
+  async function setTMStatus(tid, status) { await supabase.from("profiles").update({ account_status: status }).eq("id", tid); flash("TM → " + status); loadData(); }
 
   const tms = profiles.filter(p => p.role === "tm");
   const openDefects = defects.filter(d => d.status === "open" || d.status === "in_progress").length;
@@ -281,6 +283,7 @@ export default function SuperAdmin() {
                       <div style={{ fontSize: "11px", color: "#6B7280" }}>{tm.email} · {linked.length}/6 companies</div>
                     </div>
                     <span style={{ padding: "3px 8px", borderRadius: "8px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700 }}>{badge.label}</span>
+                    {(() => { const as = tm.account_status || "active"; const asCfg = { inactive: { bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB", label: "INACTIVE" }, demo: { bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE", label: "DEMO" } }[as]; return asCfg ? <span style={{ padding: "3px 8px", borderRadius: "8px", background: asCfg.bg, border: "1px solid " + asCfg.border, color: asCfg.color, fontSize: "9px", fontWeight: 700 }}>{asCfg.label}</span> : null; })()}
                     <span style={{ padding: "3px 8px", borderRadius: "8px", background: "#2563EB15", color: "#2563EB", fontSize: "9px", fontWeight: 700 }}>£49/mo</span>
                     <span style={{ color: "#94A3B8" }}>→</span>
                   </div>
@@ -333,8 +336,8 @@ export default function SuperAdmin() {
           </div>
         </>)}
 
-        {/* ===== COMPANY DETAIL (from overview or companies tab) ===== */}
-        {selectedCompany && !selectedTM && (() => {
+        {/* ===== COMPANY DETAIL (overview tab only — companies tab has its own below) ===== */}
+        {tab === "overview" && selectedCompany && !selectedTM && (() => {
           const c = selectedCompany;
           const cv = getCompanyVehicles(c.id);
           const cd = getCompanyDefects(c.id);
@@ -391,9 +394,15 @@ export default function SuperAdmin() {
           const badge = getTrialBadge(tm);
           const tmVehicles = linked.flatMap(c => getCompanyVehicles(c.id));
           const tmChecks = linked.flatMap(c => checks.filter(x => x.company_id === c.id));
+          const tmAccStatus = tm.account_status || "active";
+          const tmStatusCfg = {
+            active: { label: "ACTIVE", bg: "#ECFDF5", color: "#059669", border: "#A7F3D0" },
+            inactive: { label: "INACTIVE", bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" },
+            demo: { label: "DEMO", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
+          };
           return (<>
             <button onClick={() => setSelectedTM(null)} style={{ background: "none", border: "none", fontSize: "13px", color: "#2563EB", fontWeight: 600, cursor: "pointer", marginBottom: "16px", fontFamily: "inherit" }}>← Back</button>
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
               <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "18px" }}>{initials(tm.full_name)}</div>
               <div>
                 <h1 style={{ fontSize: "26px", fontWeight: 800 }}>{tm.full_name}</h1>
@@ -401,11 +410,28 @@ export default function SuperAdmin() {
               </div>
               <span style={{ padding: "4px 12px", borderRadius: "8px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "11px", fontWeight: 700 }}>{badge.label}</span>
               <span style={{ padding: "4px 12px", borderRadius: "8px", background: "#2563EB15", color: "#2563EB", fontSize: "11px", fontWeight: 700 }}>TM Plan · £49/mo</span>
-              {/* ✅ FIXED: Only TM role — no dropdown, just a badge */}
               <span style={{ padding: "4px 12px", borderRadius: "8px", background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", fontSize: "11px", fontWeight: 700 }}>TM</span>
               {tm.subscription_status === "trial" && <button onClick={() => activateUser(tm.id)} style={{ padding: "6px 14px", borderRadius: "8px", border: "none", background: "#059669", color: "white", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>✅ Activate</button>}
               {tm.subscription_status === "expired" && <button onClick={() => activateUser(tm.id)} style={{ padding: "6px 14px", borderRadius: "8px", border: "none", background: "#059669", color: "white", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>✅ Reactivate</button>}
               {(tm.subscription_status === "active" || tm.subscription_status === "trial") && <button onClick={() => expireUser(tm.id)} style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "11px", fontWeight: 700, color: "#DC2626", cursor: "pointer" }}>⏸ Expire</button>}
+            </div>
+
+            {/* ✅ NEW: TM Account Status buttons — Active / Inactive / Demo */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "24px", padding: "14px 18px", background: "#F8FAFC", borderRadius: "12px", border: "1px solid #E5E7EB", alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginRight: "4px" }}>Account status:</span>
+              {["active", "inactive", "demo"].map(s => {
+                const sCfg = tmStatusCfg[s];
+                const isSel = tmAccStatus === s;
+                return (
+                  <button key={s} onClick={() => setTMStatus(tm.id, s)}
+                    style={{ padding: "6px 16px", borderRadius: "20px", border: "1px solid " + (isSel ? sCfg.border : "#E5E7EB"), background: isSel ? sCfg.bg : "#FFF", color: isSel ? sCfg.color : "#6B7280", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" }}>
+                    {isSel ? "● " : "○ "}{s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                );
+              })}
+              <span style={{ fontSize: "11px", color: "#94A3B8", marginLeft: "4px" }}>
+                {tmAccStatus === "demo" ? "Demo TM shows prospects the platform — never billed" : tmAccStatus === "inactive" ? "Inactive TM cannot access dashboard" : "Active TM with full platform access"}
+              </span>
             </div>
 
             {/* ✅ FIXED: TM detail stat cards are now all clickable */}
@@ -561,6 +587,12 @@ export default function SuperAdmin() {
                   {p.role !== "platform_owner" && (
                     <span style={{ padding: "4px 12px", borderRadius: "20px", background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", fontSize: "10px", fontWeight: 700 }}>TM</span>
                   )}
+                  {/* Account status badge */}
+                  {p.role === "tm" && (() => {
+                    const as = p.account_status || "active";
+                    const asCfg = { active: null, inactive: { bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB", label: "INACTIVE" }, demo: { bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE", label: "DEMO" } }[as];
+                    return asCfg ? <span style={{ padding: "4px 12px", borderRadius: "20px", background: asCfg.bg, border: "1px solid " + asCfg.border, color: asCfg.color, fontSize: "10px", fontWeight: 700 }}>{asCfg.label}</span> : null;
+                  })()}
                   {p.role === "platform_owner" && (
                     <span style={{ padding: "4px 12px", borderRadius: "20px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", fontSize: "10px", fontWeight: 700 }}>OWNER</span>
                   )}
@@ -607,6 +639,8 @@ export default function SuperAdmin() {
             const v = getCompanyVehicles(c.id).length;
             const d = getCompanyDefects(c.id).filter(x => x.status === "open" || x.status === "in_progress").length;
             const tmNames = tmCompanyLinks.filter(l => l.company_id === c.id).map(l => profiles.find(p => p.id === l.tm_id)).filter(Boolean).map(t => t.full_name).join(", ");
+            const cStatus = c.status || "active";
+            const statusBadge = { active: null, inactive: { label: "INACTIVE", bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" }, demo: { label: "DEMO", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" } }[cStatus];
             return (
               <div key={c.id} onClick={() => setSelectedCompany(c)} className="row-hover"
                 style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", padding: "18px 24px", display: "flex", alignItems: "center", gap: "16px", marginBottom: "10px", cursor: "pointer", transition: "all 0.15s" }}
@@ -614,7 +648,10 @@ export default function SuperAdmin() {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = "none"; }}>
                 <span style={{ fontSize: "28px" }}>🏢</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "15px", fontWeight: 700 }}>{c.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ fontSize: "15px", fontWeight: 700 }}>{c.name}</div>
+                    {statusBadge && <span style={{ padding: "2px 8px", borderRadius: "10px", background: statusBadge.bg, border: "1px solid " + statusBadge.border, color: statusBadge.color, fontSize: "9px", fontWeight: 700 }}>{statusBadge.label}</span>}
+                  </div>
                   <div style={{ fontSize: "12px", color: "#6B7280" }}>{c.operator_licence || "No licence"}</div>
                   {tmNames ? <div style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600, marginTop: "4px" }}>{tmNames}</div> : <div style={{ fontSize: "11px", color: "#DC2626", fontWeight: 600, marginTop: "4px" }}>⚠ No TM assigned</div>}
                 </div>
@@ -639,11 +676,51 @@ export default function SuperAdmin() {
           const cv = getCompanyVehicles(c.id);
           const cd = getCompanyDefects(c.id);
           const companyChecks = checks.filter(x => x.company_id === c.id);
+          const linkedTMs = tmCompanyLinks.filter(l => l.company_id === c.id).map(l => profiles.find(p => p.id === l.tm_id)).filter(Boolean);
+          const cStatus = c.status || "active";
+          const statusCfg = {
+            active: { label: "ACTIVE", bg: "#ECFDF5", color: "#059669", border: "#A7F3D0" },
+            inactive: { label: "INACTIVE", bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" },
+            demo: { label: "DEMO", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
+          };
+          const cfg = statusCfg[cStatus] || statusCfg.active;
           return (<>
             <button onClick={() => setSelectedCompany(null)} style={{ background: "none", border: "none", fontSize: "13px", color: "#2563EB", fontWeight: 600, cursor: "pointer", marginBottom: "16px", fontFamily: "inherit" }}>← Back</button>
-            <h1 style={{ fontSize: "26px", fontWeight: 800, marginBottom: "24px" }}>🏢 {c.name}</h1>
 
-            {/* ✅ FIXED: Companies tab detail stat cards also clickable */}
+            {/* Company header with status */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px", flexWrap: "wrap", gap: "12px" }}>
+              <div>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>🏢 {c.name}</h1>
+                <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>
+                  {c.operator_licence || "No licence"} ·{" "}
+                  {linkedTMs.length > 0
+                    ? <span style={{ color: "#2563EB", fontWeight: 600 }}>TM: {linkedTMs.map(t => t.full_name).join(", ")}</span>
+                    : <span style={{ color: "#DC2626", fontWeight: 600 }}>⚠ No TM assigned</span>}
+                </p>
+              </div>
+              {/* Status badge */}
+              <span style={{ padding: "4px 14px", borderRadius: "20px", background: cfg.bg, border: "1px solid " + cfg.border, color: cfg.color, fontSize: "11px", fontWeight: 700 }}>{cfg.label}</span>
+            </div>
+
+            {/* ✅ Active / Inactive / Demo buttons */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "24px", padding: "14px 18px", background: "#F8FAFC", borderRadius: "12px", border: "1px solid #E5E7EB", alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginRight: "4px" }}>Company status:</span>
+              {["active", "inactive", "demo"].map(s => {
+                const sCfg = statusCfg[s];
+                const isSelected = cStatus === s;
+                return (
+                  <button key={s} onClick={() => setCompanyStatus(c.id, s)}
+                    style={{ padding: "6px 16px", borderRadius: "20px", border: "1px solid " + (isSelected ? sCfg.border : "#E5E7EB"), background: isSelected ? sCfg.bg : "#FFF", color: isSelected ? sCfg.color : "#6B7280", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.15s", fontFamily: "inherit" }}>
+                    {isSelected ? "● " : "○ "}{s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                );
+              })}
+              <span style={{ fontSize: "11px", color: "#94A3B8", marginLeft: "4px" }}>
+                {cStatus === "demo" ? "Demo companies show sample data to prospects" : cStatus === "inactive" ? "Inactive companies are hidden from TM dashboards" : "Active and visible to TM"}
+              </span>
+            </div>
+
+            {/* Stat cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
               <StatCard icon="🚛" value={cv.length} label="Vehicles" accent="#059669" onClick={() => { window.location.href = "/vehicles"; }} tooltip="View vehicles" />
               <StatCard icon="⚠️" value={cd.filter(d => d.status === "open").length} label="Open Defects" accent="#DC2626" onClick={() => { window.location.href = "/defects"; }} tooltip="View defects" />
@@ -786,4 +863,3 @@ export default function SuperAdmin() {
     </div>
   );
 }
-
