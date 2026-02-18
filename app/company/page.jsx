@@ -404,7 +404,8 @@ export default function ComplyFleetCompany() {
                       const worstDays = Math.min(...["mot_due","pmi_due","insurance_due","tacho_due","service_due"].map(k => getDaysUntil(v[k]) ?? 9999));
                       const risk = getRisk(worstDays);
                       return (
-                        <div key={v.id} style={{ padding: "14px 16px", borderRadius: "12px", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div key={v.id} style={{ padding: "14px 16px", borderRadius: "12px", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", transition: "all 0.15s" }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.borderColor = "#3B82F6"; }} onMouseLeave={e => { e.currentTarget.style.background = ""; e.currentTarget.style.borderColor = "#E5E7EB"; }}>
                           <span style={{ fontSize: "20px" }}>{TYPES[v.type]}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 700, fontSize: "14px", color: "#111827", fontFamily: "monospace" }}>{v.reg}</div>
