@@ -240,7 +240,8 @@ export default function CompanyPortal() {
                   </tr></thead>
                   <tbody>
                     {vehicles.map(v => (
-                      <tr key={v.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                      <tr key={v.id} style={{ borderBottom: "1px solid #F3F4F6", cursor: "pointer", transition: "all 0.15s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = ""}>
                         <td style={{ padding: "14px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <span style={{ fontSize: "20px" }}>{TYPES[v.type]}</span>
@@ -269,7 +270,8 @@ export default function CompanyPortal() {
             {checks.length === 0 ? <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8", background: "#FFF", borderRadius: "16px" }}>No checks recorded yet</div> :
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {checks.map(ch => (
-                <div key={ch.id} style={{ background: "#FFF", borderRadius: "14px", border: "1px solid #E5E7EB", padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
+                <div key={ch.id} style={{ background: "#FFF", borderRadius: "14px", border: "1px solid #E5E7EB", padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px", cursor: "pointer", transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
                   <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: ch.result === "pass" ? "#ECFDF5" : "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>{ch.result === "pass" ? "\u2705" : "\u26A0\uFE0F"}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: "14px", color: "#111827" }}>{ch.vehicle_reg}</div>
