@@ -406,7 +406,7 @@ export default function SuperAdmin() {
       {/* === CREATE COMPANY MODAL === */}
       {showCreateCompany && (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={() => setShowCreateCompany(false)}>
         <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
-          <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}><h2 style={{ fontSize: "18px", fontWeight: 800, margin: 0 }}>{"\u{1F3E2}"} Create Company</h2><p style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add operator company and link to a TM</p></div>
+          <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}><h2 style={{ fontSize: "18px", fontWeight: 800, margin: 0 }}>{"\u{1F3E2}"} Create Company</h2><p style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>7-day free trial {"\u00B7"} {"\u00A3"}29/mo after {"\u00B7"} Unlimited vehicles</p></div>
           <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
             <div><label style={labelStyle}>Company Name *</label><input value={companyForm.name} onChange={e => setCompanyForm({...companyForm, name: e.target.value})} placeholder="Hargreaves Haulage Ltd" style={inputStyle} /></div>
             <div><label style={labelStyle}>O-Licence Number</label><input value={companyForm.operator_licence} onChange={e => setCompanyForm({...companyForm, operator_licence: e.target.value})} placeholder="OB1234567" style={inputStyle} /></div>
@@ -415,11 +415,12 @@ export default function SuperAdmin() {
               <div><label style={labelStyle}>Phone</label><input value={companyForm.contact_phone} onChange={e => setCompanyForm({...companyForm, contact_phone: e.target.value})} placeholder="01onal 234 5678" style={inputStyle} /></div>
             </div>
             <div><label style={labelStyle}>Link to Transport Manager</label><select value={linkToTM} onChange={e => setLinkToTM(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}><option value="">None (link later)</option>{tms.map(t => <option key={t.id} value={t.id}>{t.full_name || t.email}</option>)}</select></div>
+            <div style={{ padding: "12px 16px", borderRadius: "10px", background: "#FFFBEB", border: "1px solid #FDE68A" }}><div style={{ fontSize: "12px", fontWeight: 700, color: "#92400E" }}>{"\u23F3"} 7-Day Free Trial</div><div style={{ fontSize: "11px", color: "#B45309", marginTop: "2px" }}>Full access to all features. {"\u00A3"}29/mo after trial.</div></div>
             {inviteMsg && <div style={{ padding: "10px", borderRadius: "8px", background: "#FEF2F2", fontSize: "12px", color: "#DC2626", fontWeight: 600 }}>{inviteMsg}</div>}
           </div>
           <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
             <button onClick={() => { setShowCreateCompany(false); setInviteMsg(""); }} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
-            <button onClick={createCompany} disabled={inviteLoading || !companyForm.name} style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: companyForm.name ? "#0F172A" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>{inviteLoading ? "Creating..." : "Create Company"}</button>
+            <button onClick={createCompany} disabled={inviteLoading || !companyForm.name} style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: companyForm.name ? "#0F172A" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>{inviteLoading ? "Creating..." : "Create Company (7-day trial)"}</button>
           </div>
         </div>
       </div>)}
