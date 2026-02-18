@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.3";
+const VERSION = "v5.4";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -97,8 +97,20 @@ export default function SuperAdmin() {
   async function unlinkCompany(tid, cid) { await supabase.from("tm_companies").delete().match({ tm_id: tid, company_id: cid }); flash("Unlinked"); loadData(); }
   async function activateUser(uid) { await supabase.from("profiles").update({ subscription_status: "active", trial_ends_at: null }).eq("id", uid); flash("Activated"); loadData(); }
   async function expireUser(uid) { await supabase.from("profiles").update({ subscription_status: "expired" }).eq("id", uid); flash("Expired"); loadData(); }
-  async function setCompanyStatus(cid, status) { await supabase.from("companies").update({ status }).eq("id", cid); flash("Company → " + status); loadData(); }
-  async function setTMStatus(tid, status) { await supabase.from("profiles").update({ account_status: status }).eq("id", tid); flash("TM → " + status); loadData(); }
+  async function setCompanyStatus(cid, status) {
+    await supabase.from("companies").update({ status }).eq("id", cid);
+    flash("Company → " + status);
+    // Update selectedCompany immediately so buttons reflect new state without waiting for loadData
+    setSelectedCompany(prev => prev && prev.id === cid ? { ...prev, status } : prev);
+    loadData();
+  }
+  async function setTMStatus(tid, status) {
+    await supabase.from("profiles").update({ account_status: status }).eq("id", tid);
+    flash("TM → " + status);
+    // Update selectedTM immediately so buttons reflect new state
+    setSelectedTM(prev => prev && prev.id === tid ? { ...prev, account_status: status } : prev);
+    loadData();
+  }
 
   const tms = profiles.filter(p => p.role === "tm");
   const openDefects = defects.filter(d => d.status === "open" || d.status === "in_progress").length;
@@ -556,25 +568,29 @@ export default function SuperAdmin() {
               <button onClick={() => setShowInviteTM(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#2563EB", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>👤 + TM</button>
             </div>
           </div>
-          <div style={{ display: "flex", gap: "6px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", gap: "6px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
             {[
               { k: "all", l: "All", c: profiles.length },
               { k: "tm", l: "TMs", c: tms.length },
               { k: "trial", l: "On Trial", c: trialTMs.length },
-              { k: "platform_owner", l: "Owner", c: profiles.filter(p => p.role === "platform_owner").length },
             ].map(f => (
               <button key={f.k} onClick={() => setUserFilter(f.k)}
                 style={{ padding: "6px 14px", borderRadius: "20px", border: userFilter === f.k ? "none" : "1px solid #E5E7EB", background: userFilter === f.k ? "#0F172A" : "white", color: userFilter === f.k ? "white" : "#6B7280", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 {f.l} ({f.c})
               </button>
             ))}
+            <div style={{ width: "1px", height: "20px", background: "#E5E7EB", margin: "0 4px" }} />
+            <button onClick={() => setUserFilter("platform_owner")}
+              style={{ padding: "6px 14px", borderRadius: "20px", border: userFilter === "platform_owner" ? "none" : "1px solid #FECACA", background: userFilter === "platform_owner" ? "#DC2626" : "#FEF2F2", color: userFilter === "platform_owner" ? "white" : "#DC2626", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Owner ({profiles.filter(p => p.role === "platform_owner").length})
+            </button>
           </div>
 
           {filteredUsers.map(p => {
             const linked = p.role === "tm" ? getLinkedCompanies(p.id) : [];
             const badge = getTrialBadge(p);
             return (
-              <div key={p.id} style={{ background: "#FFF", borderRadius: "14px", border: "1px solid #E5E7EB", padding: "18px 24px", marginBottom: "10px" }}>
+              <div key={p.id} style={{ background: p.role === "platform_owner" ? "#FFF8F8" : "#FFF", borderRadius: "14px", border: p.role === "platform_owner" ? "1px solid #FECACA" : "1px solid #E5E7EB", padding: "18px 24px", marginBottom: "10px", borderLeft: p.role === "platform_owner" ? "4px solid #DC2626" : "1px solid #E5E7EB" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
                   <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "14px" }}>{initials(p.full_name)}</div>
                   <div style={{ flex: 1 }}>
