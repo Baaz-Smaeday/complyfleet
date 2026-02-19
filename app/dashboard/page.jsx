@@ -1,4 +1,4 @@
-"use client";
+"use client"; // v3
 export const dynamic = "force-dynamic";
 import { useState, useEffect, useRef } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
