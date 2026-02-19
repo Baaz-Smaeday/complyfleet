@@ -109,6 +109,41 @@ function StatCard({ icon, value, label, accent, sub, subDanger, href }) {
         </div>
       </div>
     </GlowCard>
+  {showAddCompany && (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={() => setShowAddCompany(false)}>
+      <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
+          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {[
+            { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
+            { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
+            { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
+            { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
+            { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
+              <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})}
+                placeholder={f.placeholder}
+                style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={addCompany} disabled={addingCompany || !newCompany.name.trim()}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {addingCompany ? "Adding..." : "Add Company"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   );
 }
 
@@ -155,6 +190,41 @@ function Section({ title, rightContent, children, glowColor = "59,130,246" }) {
       </div>
       <div style={{ padding: "14px" }}>{children}</div>
     </GlowCard>
+  {showAddCompany && (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={() => setShowAddCompany(false)}>
+      <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
+          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {[
+            { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
+            { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
+            { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
+            { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
+            { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
+              <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})}
+                placeholder={f.placeholder}
+                style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={addCompany} disabled={addingCompany || !newCompany.name.trim()}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {addingCompany ? "Adding..." : "Add Company"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   );
 }
 
@@ -184,6 +254,41 @@ function QuickLink({ href, icon, label, desc, glowColor }) {
         </div>
       </div>
     </a>
+  {showAddCompany && (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={() => setShowAddCompany(false)}>
+      <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
+          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {[
+            { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
+            { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
+            { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
+            { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
+            { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
+              <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})}
+                placeholder={f.placeholder}
+                style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={addCompany} disabled={addingCompany || !newCompany.name.trim()}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {addingCompany ? "Adding..." : "Add Company"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   );
 }
 
@@ -247,6 +352,41 @@ function CompanyCard({ c, risk, rCfg, score, cVehicles, cDefects, isLowScore, an
         </div>
       </div>
     </a>
+  {showAddCompany && (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={() => setShowAddCompany(false)}>
+      <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
+          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {[
+            { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
+            { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
+            { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
+            { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
+            { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
+              <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})}
+                placeholder={f.placeholder}
+                style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={addCompany} disabled={addingCompany || !newCompany.name.trim()}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {addingCompany ? "Adding..." : "Add Company"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   );
 }
 
@@ -279,6 +419,41 @@ function DefectCard({ d, sev, sCfg }) {
       </div>
       <SevPill level={sev} />
     </a>
+  {showAddCompany && (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={() => setShowAddCompany(false)}>
+      <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
+          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {[
+            { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
+            { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
+            { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
+            { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
+            { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
+              <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})}
+                placeholder={f.placeholder}
+                style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={addCompany} disabled={addingCompany || !newCompany.name.trim()}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {addingCompany ? "Adding..." : "Add Company"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   );
 }
 
@@ -290,6 +465,9 @@ export default function ComplyFleetDashboard() {
   const [checks, setChecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState("all");
+  const [showAddCompany, setShowAddCompany] = useState(false);
+  const [newCompany, setNewCompany] = useState({ name: "", o_licence: "", contact_email: "", contact_phone: "", address: "" });
+  const [addingCompany, setAddingCompany] = useState(false);
   const [profile, setProfile] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -303,6 +481,25 @@ export default function ComplyFleetDashboard() {
       });
     } else { loadData(null); }
   }, []);
+
+  async function addCompany() {
+    if (!newCompany.name.trim()) return;
+    setAddingCompany(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: comp, error } = await supabase.from("companies").insert({
+      name: newCompany.name.trim(),
+      o_licence: newCompany.o_licence.trim() || null,
+      contact_email: newCompany.contact_email.trim() || null,
+      contact_phone: newCompany.contact_phone.trim() || null,
+      address: newCompany.address.trim() || null,
+    }).select().single();
+    if (error) { setAddingCompany(false); return; }
+    await supabase.from("tm_companies").insert({ tm_id: session.user.id, company_id: comp.id });
+    setShowAddCompany(false);
+    setNewCompany({ name: "", o_licence: "", contact_email: "", contact_phone: "", address: "" });
+    setAddingCompany(false);
+    loadData(userProfile);
+  }
 
   async function loadData(userProfile) {
     setLoading(true);
@@ -450,14 +647,14 @@ export default function ComplyFleetDashboard() {
 
               {/* Companies */}
               {selectedCompany === "all" && (
-                <Section title="🏢 Operator Companies" glowColor="37,99,235" rightContent={<a href="/company" style={{ padding: "7px 16px", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "12px", textDecoration: "none" }}>+ Add Company</a>}>
+                <Section title="🏢 Operator Companies" glowColor="37,99,235" rightContent={<button onClick={() => setShowAddCompany(true)} style={{ padding: "7px 16px", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "12px", border: "none", cursor: "pointer" }}>+ Add Company</button>}>
                   {companies.length === 0
                     ? (
                       <div style={{ textAlign: "center", padding: "40px 32px" }}>
                         <div style={{ fontSize: "40px", marginBottom: "12px" }}>🏢</div>
                         <div style={{ fontWeight: 800, fontSize: "15px", color: "#111827", marginBottom: "6px" }}>No companies yet</div>
                         <div style={{ fontSize: "12px", color: "#94A3B8", marginBottom: "20px" }}>Add your first operator company to get started</div>
-                        <a href="/company" style={{ display: "inline-block", padding: "10px 24px", borderRadius: "12px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "13px", textDecoration: "none" }}>+ Add Company</a>
+                        <button onClick={() => setShowAddCompany(true)} style={{ display: "inline-block", padding: "10px 24px", borderRadius: "12px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "13px", border: "none", cursor: "pointer" }}>+ Add Company</button>
                       </div>
                     )
                     : (<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "10px" }}>
@@ -587,5 +784,40 @@ export default function ComplyFleetDashboard() {
         ComplyFleet v1.0 · DVSA Compliance Platform · © 2026
       </footer>
     </div>
+  {showAddCompany && (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
+      onClick={() => setShowAddCompany(false)}>
+      <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
+          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
+        </div>
+        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {[
+            { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
+            { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
+            { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
+            { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
+            { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
+              <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})}
+                placeholder={f.placeholder}
+                style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+          <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+          <button onClick={addCompany} disabled={addingCompany || !newCompany.name.trim()}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {addingCompany ? "Adding..." : "Add Company"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   );
 }
