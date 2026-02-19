@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.4";
+const VERSION = "v5.5";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -23,6 +23,8 @@ export default function SuperAdmin() {
   const [profiles, setProfiles] = useState([]);
   const [tmCompanyLinks, setTmCompanyLinks] = useState([]);
   const [showInviteTM, setShowInviteTM] = useState(false);
+  const [showInviteStaff, setShowInviteStaff] = useState(false);
+  const [staffForm, setStaffForm] = useState({ email: "", full_name: "", password: "", can_manage_tms: true, can_manage_companies: true, can_view_revenue: false, can_delete: false });
   const [showCreateCompany, setShowCreateCompany] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", password: "" });
@@ -169,7 +171,7 @@ export default function SuperAdmin() {
     );
   }
 
-  const filteredUsers = userFilter === "all" ? profiles : profiles.filter(p => userFilter === "trial" ? p.subscription_status === "trial" : p.role === userFilter);
+  const filteredTMs = (() => { const tmOnly = profiles.filter(p => p.role === "tm"); if (userFilter === "all") return tmOnly; if (userFilter === "trial") return tmOnly.filter(p => p.subscription_status === "trial"); if (userFilter === "active") return tmOnly.filter(p => p.subscription_status === "active"); if (userFilter === "expired") return tmOnly.filter(p => p.subscription_status === "expired"); return tmOnly; })();
 
   return (
     <div style={{ minHeight: "100vh", background: "#F1F5F9", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -190,10 +192,16 @@ export default function SuperAdmin() {
           <span style={{ padding: "3px 8px", borderRadius: "6px", background: "rgba(239,68,68,0.2)", color: "#FCA5A5", fontSize: "9px", fontWeight: 700 }}>ADMIN {VERSION}</span>
         </div>
         <div style={{ display: "flex", gap: "2px" }}>
-          {["overview", "revenue", "users", "companies"].map(t => (
-            <button key={t} onClick={() => { setTab(t); setSelectedCompany(null); setSelectedTM(null); }}
-              style={{ padding: "6px 14px", borderRadius: "8px", border: "none", background: tab === t ? "rgba(255,255,255,0.15)" : "none", color: tab === t ? "white" : "#94A3B8", fontSize: "12px", fontWeight: 700, cursor: "pointer", textTransform: "capitalize", fontFamily: "inherit" }}>
-              {t === "revenue" ? "💰 Revenue" : t.charAt(0).toUpperCase() + t.slice(1)}
+          {[
+            { k: "overview", l: "Overview" },
+            { k: "revenue", l: "💰 Revenue" },
+            { k: "staff", l: "👥 Staff" },
+            { k: "tms", l: "🚛 TMs" },
+            { k: "companies", l: "🏢 Companies" },
+          ].map(t => (
+            <button key={t.k} onClick={() => { setTab(t.k); setSelectedCompany(null); setSelectedTM(null); }}
+              style={{ padding: "6px 14px", borderRadius: "8px", border: "none", background: tab === t.k ? "rgba(255,255,255,0.15)" : "none", color: tab === t.k ? "white" : "#94A3B8", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              {t.l}
             </button>
           ))}
         </div>
@@ -234,7 +242,7 @@ export default function SuperAdmin() {
           {/* ✅ Overview stat cards — all clickable */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "24px" }}>
             {[
-              { icon: "👤", value: tms.length, label: "Transport Managers", accent: "#2563EB", sub: trialTMs.length > 0 ? trialTMs.length + " on trial" : null, onClick: () => { setTab("users"); setUserFilter("tm"); } },
+              { icon: "👤", value: tms.length, label: "Transport Managers", accent: "#2563EB", sub: trialTMs.length > 0 ? trialTMs.length + " on trial" : null, onClick: () => { setTab("tms"); setUserFilter("tm"); } },
               { icon: "🏢", value: companies.length, label: "Companies", accent: "#0F172A", onClick: () => setTab("companies") },
               { icon: "🚛", value: vehicles.length, label: "Vehicles", accent: "#059669", onClick: () => { window.location.href = "/vehicles"; } },
               { icon: "⚠️", value: openDefects, label: "Open Defects", accent: "#DC2626", onClick: () => { window.location.href = "/defects"; } },
@@ -272,7 +280,7 @@ export default function SuperAdmin() {
                 <div style={{ fontSize: "14px", fontWeight: 800, color: "#92400E" }}>{trialTMs.length} TM{trialTMs.length > 1 ? "s" : ""} on 7-day free trial</div>
                 <div style={{ fontSize: "12px", color: "#B45309", marginTop: "2px" }}>{trialTMs.map(t => (t.full_name || t.email) + " (" + daysLeft(t.trial_ends_at) + "d left)").join(", ")}</div>
               </div>
-              <button onClick={() => { setTab("users"); setUserFilter("trial"); }}
+              <button onClick={() => { setTab("tms"); setUserFilter("trial"); }}
                 style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #FDE68A", background: "#FFF", fontSize: "11px", fontWeight: 700, color: "#92400E", cursor: "pointer" }}>Manage</button>
             </div>
           )}
@@ -479,15 +487,61 @@ export default function SuperAdmin() {
         })()}
 
         {/* ===== REVENUE ===== */}
+        {/* ===== STAFF TAB ===== */}
+        {tab === "staff" && (<>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+            <div>
+              <h1 style={{ fontSize: "26px", fontWeight: 800 }}>👥 Admin Staff</h1>
+              <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Internal team members with controlled platform access</p>
+            </div>
+            <button onClick={() => setShowInviteStaff(true)}
+              style={{ padding: "10px 20px", borderRadius: "10px", border: "none", background: "#7C3AED", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              + Add Staff Member
+            </button>
+          </div>
+
+          {/* Permission explanation */}
+          <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px" }}>
+            <p style={{ fontSize: "13px", color: "#5B21B6", fontWeight: 600, margin: 0 }}>
+              🔐 Staff members see a restricted admin view. You control exactly what each person can access.
+            </p>
+          </div>
+
+          {/* Staff list — empty state for now */}
+          <div style={{ background: "#FFF", borderRadius: "16px", border: "2px dashed #E5E7EB", padding: "60px 24px", textAlign: "center" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
+            <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", marginBottom: "8px" }}>No staff members yet</h2>
+            <p style={{ fontSize: "13px", color: "#94A3B8", marginBottom: "24px" }}>Add your first team member and control what they can access</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", maxWidth: "500px", margin: "0 auto 24px", textAlign: "left" }}>
+              {[
+                { icon: "🚛", label: "Manage TMs", desc: "View, activate, deactivate TM accounts" },
+                { icon: "🏢", label: "Manage Companies", desc: "View, edit company status" },
+                { icon: "💰", label: "View Revenue", desc: "See billing and subscription data" },
+                { icon: "🗑️", label: "Delete Records", desc: "Remove TMs, companies, vehicles" },
+              ].map(p => (
+                <div key={p.label} style={{ padding: "12px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#F8FAFC" }}>
+                  <div style={{ fontSize: "20px", marginBottom: "4px" }}>{p.icon}</div>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#0F172A" }}>{p.label}</div>
+                  <div style={{ fontSize: "11px", color: "#94A3B8" }}>{p.desc}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowInviteStaff(true)}
+              style={{ padding: "10px 24px", borderRadius: "10px", border: "none", background: "#7C3AED", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              + Add First Staff Member
+            </button>
+          </div>
+        </>)}
+
         {tab === "revenue" && (<>
           <h1 style={{ fontSize: "26px", fontWeight: 800, marginBottom: "24px" }}>💰 Revenue & Pricing</h1>
 
           {/* ✅ FIXED: Revenue stat cards are clickable */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
-            <StatCard icon="💰" value={"£" + mrrNow} label="MRR (Paying)" accent="#059669" onClick={() => setTab("users")} tooltip="Click to view paying TMs" />
+            <StatCard icon="💰" value={"£" + mrrNow} label="MRR (Paying)" accent="#059669" onClick={() => setTab("tms")} tooltip="Click to view paying TMs" />
             <StatCard icon="📈" value={"£" + (mrrNow * 12).toLocaleString()} label="ARR" accent="#2563EB" />
-            <StatCard icon="👥" value={activeTMs.length} label="Paying TMs" accent="#0F172A" onClick={() => { setTab("users"); setUserFilter("tm"); }} tooltip="Click to view TM list" />
-            <StatCard icon="⏳" value={trialTMs.length} label="On Trial" accent="#D97706" onClick={() => { setTab("users"); setUserFilter("trial"); }} tooltip="Click to view trial accounts" />
+            <StatCard icon="👥" value={activeTMs.length} label="Paying TMs" accent="#0F172A" onClick={() => { setTab("tms"); setUserFilter("tm"); }} tooltip="Click to view TM list" />
+            <StatCard icon="⏳" value={trialTMs.length} label="On Trial" accent="#D97706" onClick={() => { setTab("tms"); setUserFilter("trial"); }} tooltip="Click to view trial accounts" />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
@@ -561,9 +615,9 @@ export default function SuperAdmin() {
         </>)}
 
         {/* ===== USERS ===== */}
-        {tab === "users" && (<>
+        {tab === "tms" && (<>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h1 style={{ fontSize: "26px", fontWeight: 800 }}>👥 Users ({profiles.length})</h1>
+            <h1 style={{ fontSize: "26px", fontWeight: 800 }}>🚛 Transport Managers ({tms.length})</h1>
             <div style={{ display: "flex", gap: "8px" }}>
               <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>🏢 + Company</button>
               <button onClick={() => setShowInviteTM(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#2563EB", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>👤 + TM</button>
@@ -571,23 +625,19 @@ export default function SuperAdmin() {
           </div>
           <div style={{ display: "flex", gap: "6px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
             {[
-              { k: "all", l: "All", c: profiles.length },
-              { k: "tm", l: "TMs", c: tms.length },
-              { k: "trial", l: "On Trial", c: trialTMs.length },
+              { k: "all", l: "All TMs", c: tms.length },
+              { k: "active", l: "✅ Active", c: tms.filter(p => p.subscription_status === "active").length },
+              { k: "trial", l: "⏳ On Trial", c: trialTMs.length },
+              { k: "expired", l: "❌ Expired", c: tms.filter(p => p.subscription_status === "expired").length },
             ].map(f => (
               <button key={f.k} onClick={() => setUserFilter(f.k)}
                 style={{ padding: "6px 14px", borderRadius: "20px", border: userFilter === f.k ? "none" : "1px solid #E5E7EB", background: userFilter === f.k ? "#0F172A" : "white", color: userFilter === f.k ? "white" : "#6B7280", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 {f.l} ({f.c})
               </button>
             ))}
-            <div style={{ width: "1px", height: "20px", background: "#E5E7EB", margin: "0 4px" }} />
-            <button onClick={() => setUserFilter("platform_owner")}
-              style={{ padding: "6px 14px", borderRadius: "20px", border: userFilter === "platform_owner" ? "none" : "1px solid #FECACA", background: userFilter === "platform_owner" ? "#DC2626" : "#FEF2F2", color: userFilter === "platform_owner" ? "white" : "#DC2626", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              Owner ({profiles.filter(p => p.role === "platform_owner").length})
-            </button>
           </div>
 
-          {filteredUsers.map(p => {
+          {filteredTMs.map(p => {
             const linked = p.role === "tm" ? getLinkedCompanies(p.id) : [];
             const badge = getTrialBadge(p);
             return (
