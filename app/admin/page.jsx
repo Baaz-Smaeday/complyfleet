@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.6";
+const VERSION = "v5.7";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -24,6 +24,7 @@ export default function SuperAdmin() {
   const [tmCompanyLinks, setTmCompanyLinks] = useState([]);
   const [showInviteTM, setShowInviteTM] = useState(false);
   const [showInviteStaff, setShowInviteStaff] = useState(false);
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [staffForm, setStaffForm] = useState({ email: "", full_name: "", password: "", can_manage_tms: true, can_manage_companies: true, can_view_revenue: false, can_delete: false });
   const [showCreateCompany, setShowCreateCompany] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -714,46 +715,125 @@ export default function SuperAdmin() {
         </>)}
 
         {/* ===== COMPANIES TAB ===== */}
-        {tab === "companies" && !selectedCompany && (<>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-            <h1 style={{ fontSize: "26px", fontWeight: 800 }}>🏢 Companies ({companies.length})</h1>
-            <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>+ Create Company</button>
-          </div>
-          {companies.map(c => {
-            const v = getCompanyVehicles(c.id).length;
-            const d = getCompanyDefects(c.id).filter(x => x.status === "open" || x.status === "in_progress").length;
-            const tmNames = tmCompanyLinks.filter(l => l.company_id === c.id).map(l => profiles.find(p => p.id === l.tm_id)).filter(Boolean).map(t => t.full_name).join(", ");
-            const cStatus = c.status || "active";
-            const statusBadge = { active: null, inactive: { label: "INACTIVE", bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" }, demo: { label: "DEMO", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" } }[cStatus];
-            return (
-              <div key={c.id} onClick={() => setSelectedCompany(c)} className="row-hover"
-                style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", padding: "18px 24px", display: "flex", alignItems: "center", gap: "16px", marginBottom: "10px", cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = "none"; }}>
-                <span style={{ fontSize: "28px" }}>🏢</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ fontSize: "15px", fontWeight: 700 }}>{c.name}</div>
-                    {statusBadge && <span style={{ padding: "2px 8px", borderRadius: "10px", background: statusBadge.bg, border: "1px solid " + statusBadge.border, color: statusBadge.color, fontSize: "9px", fontWeight: 700 }}>{statusBadge.label}</span>}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#6B7280" }}>{c.operator_licence || "No licence"}</div>
-                  {tmNames ? <div style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600, marginTop: "4px" }}>{tmNames}</div> : <div style={{ fontSize: "11px", color: "#DC2626", fontWeight: 600, marginTop: "4px" }}>⚠ No TM assigned</div>}
-                </div>
-                <div style={{ display: "flex", gap: "16px" }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "18px", fontWeight: 800, color: "#059669" }}>{v}</div>
-                    <div style={{ fontSize: "9px", color: "#6B7280" }}>vehicles</div>
-                  </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "18px", fontWeight: 800, color: d > 0 ? "#DC2626" : "#10B981" }}>{d}</div>
-                    <div style={{ fontSize: "9px", color: "#6B7280" }}>defects</div>
-                  </div>
-                </div>
-                <span style={{ color: "#94A3B8" }}>→</span>
+        {tab === "companies" && !selectedCompany && (() => {
+          const noTM = companies.filter(c => tmCompanyLinks.filter(l => l.company_id === c.id).length === 0);
+          const activeC = companies.filter(c => (c.status || "active") === "active");
+          const demoC = companies.filter(c => c.status === "demo");
+          const inactiveC = companies.filter(c => c.status === "inactive");
+          const filteredCompanies = companyFilter === "all" ? companies
+            : companyFilter === "active" ? activeC
+            : companyFilter === "demo" ? demoC
+            : companyFilter === "inactive" ? inactiveC
+            : noTM;
+          return (<>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>🏢 Companies</h1>
+                <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>{companies.length} companies across the platform</p>
               </div>
-            );
-          })}
-        </>)}
+              <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Create Company</button>
+            </div>
+
+            {/* Stats bar */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+              {[
+                { label: "Active", count: activeC.length, color: "#059669", bg: "#ECFDF5", border: "#A7F3D0", icon: "✅", filter: "active" },
+                { label: "Demo", count: demoC.length, color: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", icon: "🎯", filter: "demo" },
+                { label: "Inactive", count: inactiveC.length, color: "#6B7280", bg: "#F3F4F6", border: "#E5E7EB", icon: "⏸", filter: "inactive" },
+                { label: "No TM", count: noTM.length, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: "⚠️", filter: "notm" },
+              ].map(s => (
+                <div key={s.filter} onClick={() => setCompanyFilter(companyFilter === s.filter ? "all" : s.filter)}
+                  style={{ background: companyFilter === s.filter ? s.bg : "#FFF", border: "1px solid " + (companyFilter === s.filter ? s.border : "#E5E7EB"), borderRadius: "14px", padding: "16px 20px", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "12px" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = s.border; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = companyFilter === s.filter ? s.border : "#E5E7EB"; e.currentTarget.style.transform = "none"; }}>
+                  <span style={{ fontSize: "24px" }}>{s.icon}</span>
+                  <div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, color: s.color }}>{s.count}</div>
+                    <div style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Filter label */}
+            {companyFilter !== "all" && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                <span style={{ fontSize: "12px", color: "#64748B" }}>Filtered by: <strong>{companyFilter === "notm" ? "No TM assigned" : companyFilter}</strong></span>
+                <button onClick={() => setCompanyFilter("all")} style={{ fontSize: "11px", color: "#DC2626", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕ Clear</button>
+              </div>
+            )}
+
+            {/* Company cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "12px" }}>
+              {filteredCompanies.map(c => {
+                const v = getCompanyVehicles(c.id).length;
+                const d = getCompanyDefects(c.id).filter(x => x.status === "open" || x.status === "in_progress").length;
+                const linkedTMs = tmCompanyLinks.filter(l => l.company_id === c.id).map(l => profiles.find(p => p.id === l.tm_id)).filter(Boolean);
+                const cStatus = c.status || "active";
+                const borderColor = cStatus === "demo" ? "#3B82F6" : cStatus === "inactive" ? "#9CA3AF" : linkedTMs.length === 0 ? "#EF4444" : "#10B981";
+                const statusCfg = {
+                  active: { label: "ACTIVE", bg: "#ECFDF5", color: "#059669" },
+                  inactive: { label: "INACTIVE", bg: "#F3F4F6", color: "#6B7280" },
+                  demo: { label: "DEMO", bg: "#EFF6FF", color: "#2563EB" },
+                }[cStatus];
+                return (
+                  <div key={c.id} onClick={() => setSelectedCompany(c)}
+                    style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", borderLeft: "4px solid " + borderColor, padding: "18px 20px", cursor: "pointer", transition: "all 0.15s", position: "relative" }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+
+                    {/* Status badge top right */}
+                    <span style={{ position: "absolute", top: "14px", right: "14px", padding: "3px 8px", borderRadius: "10px", background: statusCfg.bg, color: statusCfg.color, fontSize: "9px", fontWeight: 700 }}>{statusCfg.label}</span>
+
+                    {/* Company name + licence */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "12px", paddingRight: "60px" }}>
+                      <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>🏢</div>
+                      <div>
+                        <div style={{ fontSize: "15px", fontWeight: 800, color: "#0F172A" }}>{c.name}</div>
+                        <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{c.operator_licence || "No operator licence"}</div>
+                      </div>
+                    </div>
+
+                    {/* TM assigned */}
+                    <div style={{ marginBottom: "14px" }}>
+                      {linkedTMs.length > 0
+                        ? <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {linkedTMs.map(tm => (
+                              <span key={tm.id} style={{ padding: "3px 10px", borderRadius: "20px", background: "#EFF6FF", color: "#2563EB", fontSize: "11px", fontWeight: 600 }}>🚛 {tm.full_name}</span>
+                            ))}
+                          </div>
+                        : <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#FEF2F2", color: "#DC2626", fontSize: "11px", fontWeight: 600 }}>⚠ No TM assigned</span>
+                      }
+                    </div>
+
+                    {/* Stats row */}
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: "18px", fontWeight: 800, color: "#059669" }}>{v}</div>
+                        <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>VEHICLES</div>
+                      </div>
+                      <div style={{ flex: 1, background: d > 0 ? "#FEF2F2" : "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: "18px", fontWeight: 800, color: d > 0 ? "#DC2626" : "#10B981" }}>{d}</div>
+                        <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>OPEN DEFECTS</div>
+                      </div>
+                      <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: "18px", fontWeight: 800, color: "#7C3AED" }}>{checks.filter(x => x.company_id === c.id).length}</div>
+                        <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>CHECKS</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {filteredCompanies.length === 0 && (
+              <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8" }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>🏢</div>
+                <p style={{ fontWeight: 600 }}>No companies match this filter</p>
+              </div>
+            )}
+          </>);
+        })()}
 
         {tab === "companies" && selectedCompany && (() => {
           const c = selectedCompany;
