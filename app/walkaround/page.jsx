@@ -158,15 +158,12 @@ function StepIndicator({ steps, current }) {
   );
 }
 
-// ── CheckItem: NOW WITH MOBILE TAP GLOW ─────────────────────────────────────
+// ── CheckItem: CSS :active glow — fires instantly on tap, no delay ───────────
 function CheckItem({ label, status, onToggle, index }) {
-  const [pressedPass, setPressedPass] = useState(false);
-  const [pressedFail, setPressedFail] = useState(false);
-
   const configs = {
-    unchecked: { bg: "#FFFFFF", border: "#E2E8F0", color: "#64748B" },
-    pass: { bg: "#F0FDF4", border: "#86EFAC", color: "#16A34A" },
-    fail: { bg: "#FEF2F2", border: "#FCA5A5", color: "#DC2626" },
+    unchecked: { bg: "#FFFFFF", border: "#E2E8F0" },
+    pass:      { bg: "#F0FDF4", border: "#86EFAC" },
+    fail:      { bg: "#FEF2F2", border: "#FCA5A5" },
   };
   const cfg = configs[status];
 
@@ -178,48 +175,37 @@ function CheckItem({ label, status, onToggle, index }) {
       transition: "all 0.2s ease",
       animation: `slideIn 0.3s ease ${index * 0.03}s both`,
     }}>
-      {/* Pass button — tap glow green */}
       <button
-        onTouchStart={() => setPressedPass(true)}
-        onTouchEnd={() => { setPressedPass(false); onToggle("pass"); }}
-        onMouseDown={() => setPressedPass(true)}
-        onMouseUp={() => { setPressedPass(false); onToggle("pass"); }}
-        onMouseLeave={() => setPressedPass(false)}
+        className="btn-pass"
+        onClick={() => onToggle("pass")}
         style={{
           width: "44px", height: "44px", borderRadius: "12px", border: "2px solid",
-          borderColor: status === "pass" ? "#16A34A" : pressedPass ? "#16A34A" : "#D1D5DB",
-          background: status === "pass" ? "#16A34A" : pressedPass ? "#F0FDF4" : "white",
-          color: status === "pass" ? "white" : pressedPass ? "#16A34A" : "#D1D5DB",
+          borderColor: status === "pass" ? "#16A34A" : "#D1D5DB",
+          background: status === "pass" ? "#16A34A" : "white",
+          color: status === "pass" ? "white" : "#D1D5DB",
           fontSize: "20px", fontWeight: 700, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "all 0.15s ease", flexShrink: 0,
-          transform: pressedPass ? "scale(0.90)" : "scale(1)",
-          boxShadow: pressedPass ? "0 0 0 4px rgba(22,163,74,0.25)" : status === "pass" ? "0 0 0 3px rgba(22,163,74,0.15)" : "none",
+          transition: "transform 0.1s, box-shadow 0.1s", flexShrink: 0,
+          boxShadow: status === "pass" ? "0 0 0 3px rgba(22,163,74,0.15)" : "none",
           WebkitTapHighlightColor: "transparent",
         }}>✓</button>
 
-      {/* Label */}
       <span style={{ flex: 1, fontSize: "14px", fontWeight: 500, color: "#1E293B", lineHeight: 1.4 }}>
         {label}
       </span>
 
-      {/* Fail button — tap glow red */}
       <button
-        onTouchStart={() => setPressedFail(true)}
-        onTouchEnd={() => { setPressedFail(false); onToggle("fail"); }}
-        onMouseDown={() => setPressedFail(true)}
-        onMouseUp={() => { setPressedFail(false); onToggle("fail"); }}
-        onMouseLeave={() => setPressedFail(false)}
+        className="btn-fail"
+        onClick={() => onToggle("fail")}
         style={{
           width: "44px", height: "44px", borderRadius: "12px", border: "2px solid",
-          borderColor: status === "fail" ? "#DC2626" : pressedFail ? "#DC2626" : "#D1D5DB",
-          background: status === "fail" ? "#DC2626" : pressedFail ? "#FEF2F2" : "white",
-          color: status === "fail" ? "white" : pressedFail ? "#DC2626" : "#D1D5DB",
+          borderColor: status === "fail" ? "#DC2626" : "#D1D5DB",
+          background: status === "fail" ? "#DC2626" : "white",
+          color: status === "fail" ? "white" : "#D1D5DB",
           fontSize: "20px", fontWeight: 700, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "all 0.15s ease", flexShrink: 0,
-          transform: pressedFail ? "scale(0.90)" : "scale(1)",
-          boxShadow: pressedFail ? "0 0 0 4px rgba(220,38,38,0.25)" : status === "fail" ? "0 0 0 3px rgba(220,38,38,0.15)" : "none",
+          transition: "transform 0.1s, box-shadow 0.1s", flexShrink: 0,
+          boxShadow: status === "fail" ? "0 0 0 3px rgba(220,38,38,0.15)" : "none",
           WebkitTapHighlightColor: "transparent",
         }}>✗</button>
     </div>
@@ -227,7 +213,6 @@ function CheckItem({ label, status, onToggle, index }) {
 }
 
 function CategorySection({ category, icon, items, statuses, onToggle, isOpen, onToggleOpen }) {
-  const [pressed, setPressed] = useState(false);
   const total = items.length;
   const done = items.filter((_, i) => statuses[i] !== "unchecked").length;
   const fails = items.filter((_, i) => statuses[i] === "fail").length;
@@ -238,21 +223,16 @@ function CategorySection({ category, icon, items, statuses, onToggle, isOpen, on
       borderRadius: "16px", overflow: "hidden",
       border: `1.5px solid ${fails > 0 ? "#FECACA" : allDone ? "#86EFAC" : "#E2E8F0"}`,
       background: "white", transition: "all 0.2s ease",
-      boxShadow: pressed ? `0 0 0 3px ${fails > 0 ? "rgba(220,38,38,0.2)" : allDone ? "rgba(22,163,74,0.2)" : "rgba(59,130,246,0.2)"}` : "none",
     }}>
       {/* Header */}
       <button
-        onTouchStart={() => setPressed(true)}
-        onTouchEnd={() => { setPressed(false); onToggleOpen(); }}
-        onMouseDown={() => setPressed(true)}
-        onMouseUp={() => { setPressed(false); onToggleOpen(); }}
-        onMouseLeave={() => setPressed(false)}
+        className="btn-cat"
+        onClick={onToggleOpen}
         style={{
           width: "100%", display: "flex", alignItems: "center", gap: "12px",
           padding: "16px 18px", border: "none", cursor: "pointer",
           background: fails > 0 ? "#FEF2F2" : allDone ? "#F0FDF4" : "#F8FAFC",
           transition: "all 0.2s ease",
-          transform: pressed ? "scale(0.99)" : "scale(1)",
           WebkitTapHighlightColor: "transparent",
         }}>
         <span style={{ fontSize: "22px" }}>{icon}</span>
@@ -708,6 +688,10 @@ export default function WalkaroundCheckForm() {
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         input:focus, textarea:focus, select:focus { outline: none; border-color: #3B82F6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
         button { -webkit-tap-highlight-color: transparent; }
+        .btn-pass:active { transform: scale(0.88) !important; box-shadow: 0 0 0 5px rgba(22,163,74,0.3) !important; background: #F0FDF4 !important; border-color: #16A34A !important; color: #16A34A !important; }
+        .btn-fail:active { transform: scale(0.88) !important; box-shadow: 0 0 0 5px rgba(220,38,38,0.3) !important; background: #FEF2F2 !important; border-color: #DC2626 !important; color: #DC2626 !important; }
+        .btn-cat:active { transform: scale(0.985) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.2) !important; }
+        .btn-tap:active { transform: scale(0.97) !important; opacity: 0.85; }
       `}</style>
 
       <div ref={topRef} />
