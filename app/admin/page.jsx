@@ -313,18 +313,18 @@ export default function SuperAdmin() {
               { icon: "⚠️", value: openDefects, label: "Open Defects", sub: dangerousDefects + " dangerous", subColor: dangerousDefects > 0 ? "#DC2626" : "#6B7280", accent: "#DC2626", bg: "#FEF2F2", onClick: () => { window.location.href = "/defects"; } },
               { icon: "📋", value: checks.length, label: "Total Checks", sub: checks.filter(c => c.result === "pass").length + " passed", subColor: "#059669", accent: "#7C3AED", bg: "#F5F3FF", onClick: () => { window.location.href = "/checks"; } },
             ].map(s => (
-              <div key={s.label} onClick={s.onClick}
-                style={{ background: "#FFF", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E5E7EB", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "16px" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = s.accent; e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 16px 40px ${s.accent}30`; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
-                <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", flexShrink: 0 }}>{s.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "28px", fontWeight: 800, color: s.accent, lineHeight: 1 }}>{s.value}</div>
-                  <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "3px", fontWeight: 600 }}>{s.label}</div>
-                  <div style={{ fontSize: "11px", color: s.subColor, marginTop: "2px", fontWeight: 600 }}>{s.sub}</div>
+              <GlowCard key={s.label} onClick={s.onClick}
+                color={s.accent === "#DC2626" ? "220,38,38" : s.accent === "#2563EB" ? "37,99,235" : s.accent === "#059669" ? "5,150,105" : s.accent === "#7C3AED" ? "124,58,237" : s.accent === "#0891B2" ? "8,145,178" : "15,23,42"}>
+                <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: "16px" }}>
+                  <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", flexShrink: 0 }}>{s.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "28px", fontWeight: 800, color: s.accent, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "3px", fontWeight: 600 }}>{s.label}</div>
+                    <div style={{ fontSize: "11px", color: s.subColor, marginTop: "2px", fontWeight: 600 }}>{s.sub}</div>
+                  </div>
+                  <span style={{ color: "#CBD5E1", fontSize: "18px" }}>→</span>
                 </div>
-                <span style={{ color: "#CBD5E1", fontSize: "18px" }}>→</span>
-              </div>
+              </GlowCard>
             ))}
           </div>
 
@@ -601,15 +601,15 @@ export default function SuperAdmin() {
               { icon: "✅", label: "Paying TMs", value: activeTMs.length, sub: "active subscriptions", color: "#0F172A", bg: "#F8FAFC", border: "#E5E7EB", onClick: () => { setTab("tms"); setUserFilter("active"); } },
               { icon: "⏳", label: "On Trial", value: trialTMs.length, sub: "7-day free trial", color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", onClick: () => { setTab("tms"); setUserFilter("trial"); } },
             ].map(s => (
-              <div key={s.label} onClick={s.onClick}
-                style={{ background: "#FFF", borderRadius: "16px", padding: "20px", border: "1px solid " + s.border, cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.background = s.bg; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,0.1)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "#FFF"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
-                <div style={{ fontSize: "28px", marginBottom: "8px" }}>{s.icon}</div>
-                <div style={{ fontSize: "26px", fontWeight: 800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginTop: "4px" }}>{s.label}</div>
-                <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{s.sub}</div>
-              </div>
+              <GlowCard key={s.label} onClick={s.onClick}
+                color={s.color === "#059669" ? "5,150,105" : s.color === "#2563EB" ? "37,99,235" : s.color === "#D97706" ? "217,119,6" : "15,23,42"}>
+                <div style={{ padding: "20px" }}>
+                  <div style={{ fontSize: "28px", marginBottom: "8px" }}>{s.icon}</div>
+                  <div style={{ fontSize: "26px", fontWeight: 800, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginTop: "4px" }}>{s.label}</div>
+                  <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{s.sub}</div>
+                </div>
+              </GlowCard>
             ))}
           </div>
 
@@ -718,16 +718,16 @@ export default function SuperAdmin() {
                 { label: "On Trial", count: trialTMList.length, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", icon: "⏳", filter: "trial" },
                 { label: "Expired", count: expiredTMList.length, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: "❌", filter: "expired" },
               ].map(s => (
-                <div key={s.filter} onClick={() => setUserFilter(userFilter === s.filter ? "all" : s.filter)}
-                  style={{ background: userFilter === s.filter ? s.bg : "#FFF", border: "1px solid " + (userFilter === s.filter ? s.border : "#E5E7EB"), borderRadius: "14px", padding: "16px 20px", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "12px" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = s.border; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = userFilter === s.filter ? s.border : "#E5E7EB"; e.currentTarget.style.transform = "none"; }}>
-                  <span style={{ fontSize: "24px" }}>{s.icon}</span>
-                  <div>
-                    <div style={{ fontSize: "22px", fontWeight: 800, color: s.color }}>{s.count}</div>
-                    <div style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{s.label}</div>
+                <GlowCard key={s.filter} onClick={() => setUserFilter(userFilter === s.filter ? "all" : s.filter)}
+                  color={s.color === "#059669" ? "5,150,105" : s.color === "#D97706" ? "217,119,6" : "220,38,38"}>
+                  <div style={{ background: userFilter === s.filter ? s.bg : "#FFF", padding: "16px 20px", display: "flex", alignItems: "center", gap: "12px", borderRadius: "16px" }}>
+                    <span style={{ fontSize: "24px" }}>{s.icon}</span>
+                    <div>
+                      <div style={{ fontSize: "22px", fontWeight: 800, color: s.color }}>{s.count}</div>
+                      <div style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{s.label}</div>
+                    </div>
                   </div>
-                </div>
+                </GlowCard>
               ))}
             </div>
 
@@ -861,16 +861,16 @@ export default function SuperAdmin() {
                 { label: "Inactive", count: inactiveC.length, color: "#6B7280", bg: "#F3F4F6", border: "#E5E7EB", icon: "⏸", filter: "inactive" },
                 { label: "No TM", count: noTM.length, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: "⚠️", filter: "notm" },
               ].map(s => (
-                <div key={s.filter} onClick={() => setCompanyFilter(companyFilter === s.filter ? "all" : s.filter)}
-                  style={{ background: companyFilter === s.filter ? s.bg : "#FFF", border: "1px solid " + (companyFilter === s.filter ? s.border : "#E5E7EB"), borderRadius: "14px", padding: "16px 20px", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "12px" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = s.border; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = companyFilter === s.filter ? s.border : "#E5E7EB"; e.currentTarget.style.transform = "none"; }}>
-                  <span style={{ fontSize: "24px" }}>{s.icon}</span>
-                  <div>
-                    <div style={{ fontSize: "22px", fontWeight: 800, color: s.color }}>{s.count}</div>
-                    <div style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{s.label}</div>
+                <GlowCard key={s.filter} onClick={() => setCompanyFilter(companyFilter === s.filter ? "all" : s.filter)}
+                  color={s.color === "#059669" ? "5,150,105" : s.color === "#2563EB" ? "37,99,235" : s.color === "#DC2626" ? "220,38,38" : "107,114,128"}>
+                  <div style={{ background: companyFilter === s.filter ? s.bg : "#FFF", padding: "16px 20px", display: "flex", alignItems: "center", gap: "12px", borderRadius: "16px" }}>
+                    <span style={{ fontSize: "24px" }}>{s.icon}</span>
+                    <div>
+                      <div style={{ fontSize: "22px", fontWeight: 800, color: s.color }}>{s.count}</div>
+                      <div style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{s.label}</div>
+                    </div>
                   </div>
-                </div>
+                </GlowCard>
               ))}
             </div>
 
