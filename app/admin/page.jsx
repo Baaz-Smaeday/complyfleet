@@ -1,4 +1,4 @@
-a"use client";
+"use client";
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
@@ -1296,6 +1296,3 @@ export default function SuperAdmin() {
     </div>
   );
 }
-
-
-
