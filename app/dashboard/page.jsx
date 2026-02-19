@@ -450,9 +450,16 @@ export default function ComplyFleetDashboard() {
 
               {/* Companies */}
               {selectedCompany === "all" && (
-                <Section title="🏢 Operator Companies" glowColor="37,99,235">
+                <Section title="🏢 Operator Companies" glowColor="37,99,235" rightContent={<a href="/company" style={{ padding: "7px 16px", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "12px", textDecoration: "none" }}>+ Add Company</a>}>
                   {companies.length === 0
-                    ? <div style={{ textAlign: "center", padding: "32px", color: "#94A3B8" }}>No companies yet</div>
+                    ? (
+                      <div style={{ textAlign: "center", padding: "40px 32px" }}>
+                        <div style={{ fontSize: "40px", marginBottom: "12px" }}>🏢</div>
+                        <div style={{ fontWeight: 800, fontSize: "15px", color: "#111827", marginBottom: "6px" }}>No companies yet</div>
+                        <div style={{ fontSize: "12px", color: "#94A3B8", marginBottom: "20px" }}>Add your first operator company to get started</div>
+                        <a href="/company" style={{ display: "inline-block", padding: "10px 24px", borderRadius: "12px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "13px", textDecoration: "none" }}>+ Add Company</a>
+                      </div>
+                    )
                     : (<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "10px" }}>
                         {companies.map((c, i) => {
                           const risk = getCompanyRisk(c.id);
