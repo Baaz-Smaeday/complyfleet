@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.8";
+const VERSION = "v5.9";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -246,132 +246,121 @@ export default function SuperAdmin() {
 
         {/* ===== OVERVIEW ===== */}
         {tab === "overview" && !selectedCompany && !selectedTM && (<>
+
+          {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
             <div>
-              <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>🛠️ Platform Overview</h1>
-              <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Click any card to drill down</p>
+              <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A", margin: 0 }}>🛠️ Platform Overview</h1>
+              <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Real-time platform metrics — click any card to drill down</p>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>🏢 + Company</button>
-              <button onClick={() => setShowInviteTM(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>👤 + TM Account</button>
+              <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🏢 + Company</button>
+              <button onClick={() => setShowInviteTM(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🚛 + TM</button>
             </div>
           </div>
 
-          {/* ✅ Overview stat cards — all clickable */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "24px" }}>
+          {/* 6 KPI cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
             {[
-              { icon: "👤", value: tms.length, label: "Transport Managers", accent: "#2563EB", sub: trialTMs.length > 0 ? trialTMs.length + " on trial" : null, onClick: () => { setTab("tms"); setUserFilter("tm"); } },
-              { icon: "🏢", value: companies.length, label: "Companies", accent: "#0F172A", onClick: () => setTab("companies") },
-              { icon: "🚛", value: vehicles.length, label: "Vehicles", accent: "#059669", onClick: () => { window.location.href = "/vehicles"; } },
-              { icon: "⚠️", value: openDefects, label: "Open Defects", accent: "#DC2626", onClick: () => { window.location.href = "/defects"; } },
-              { icon: "📋", value: checks.length, label: "Checks", accent: "#7C3AED", onClick: () => { window.location.href = "/checks"; } },
-              { icon: "💰", value: "£" + mrrNow, label: "Monthly Revenue", accent: "#0891B2", onClick: () => setTab("revenue") },
+              { icon: "🚛", value: tms.length, label: "Transport Managers", sub: trialTMs.length > 0 ? trialTMs.length + " on trial" : "All active", subColor: trialTMs.length > 0 ? "#D97706" : "#059669", accent: "#2563EB", bg: "#EFF6FF", onClick: () => setTab("tms") },
+              { icon: "🏢", value: companies.length, label: "Companies", sub: companies.filter(c => tmCompanyLinks.filter(l => l.company_id === c.id).length === 0).length + " need TM", subColor: "#DC2626", accent: "#0F172A", bg: "#F8FAFC", onClick: () => setTab("companies") },
+              { icon: "💰", value: "£" + mrrNow, label: "Monthly Revenue", sub: "£" + (mrrNow * 12).toLocaleString() + " ARR", subColor: "#059669", accent: "#0891B2", bg: "#ECFEFF", onClick: () => setTab("revenue") },
+              { icon: "🚗", value: vehicles.length, label: "Active Vehicles", sub: vehicles.filter(v => v.status === "active").length + " compliant", subColor: "#059669", accent: "#059669", bg: "#ECFDF5", onClick: () => { window.location.href = "/vehicles"; } },
+              { icon: "⚠️", value: openDefects, label: "Open Defects", sub: dangerousDefects + " dangerous", subColor: dangerousDefects > 0 ? "#DC2626" : "#6B7280", accent: "#DC2626", bg: "#FEF2F2", onClick: () => { window.location.href = "/defects"; } },
+              { icon: "📋", value: checks.length, label: "Total Checks", sub: checks.filter(c => c.result === "pass").length + " passed", subColor: "#059669", accent: "#7C3AED", bg: "#F5F3FF", onClick: () => { window.location.href = "/checks"; } },
             ].map(s => (
               <div key={s.label} onClick={s.onClick}
-                style={{ background: "#FFF", borderRadius: "16px", padding: "18px 22px", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: "14px", cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = s.accent; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
-                <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: s.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>{s.icon}</div>
-                <div>
-                  <div style={{ fontSize: "26px", fontWeight: 800, color: s.accent, lineHeight: 1 }}>{s.value}</div>
-                  <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "3px" }}>{s.label}</div>
-                  {s.sub && <div style={{ fontSize: "10px", color: "#D97706", fontWeight: 600 }}>{s.sub}</div>}
+                style={{ background: "#FFF", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E5E7EB", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "16px" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = s.accent; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+                <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", flexShrink: 0 }}>{s.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "28px", fontWeight: 800, color: s.accent, lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "3px", fontWeight: 600 }}>{s.label}</div>
+                  <div style={{ fontSize: "11px", color: s.subColor, marginTop: "2px", fontWeight: 600 }}>{s.sub}</div>
                 </div>
+                <span style={{ color: "#CBD5E1", fontSize: "18px" }}>→</span>
               </div>
             ))}
           </div>
 
+          {/* Alert banners */}
           {dangerousDefects > 0 && (
             <div onClick={() => { window.location.href = "/defects"; }}
-              style={{ padding: "14px 20px", borderRadius: "14px", background: "#FEF2F2", border: "2px solid #FECACA", marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}
+              style={{ padding: "14px 20px", borderRadius: "14px", background: "#FEF2F2", border: "2px solid #FECACA", marginBottom: "12px", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}
               onMouseEnter={e => e.currentTarget.style.background = "#FEE2E2"} onMouseLeave={e => e.currentTarget.style.background = "#FEF2F2"}>
               <span style={{ fontSize: "22px" }}>🚨</span>
-              <div style={{ flex: 1, fontSize: "14px", fontWeight: 800, color: "#991B1B" }}>{dangerousDefects} dangerous defect{dangerousDefects > 1 ? "s" : ""}</div>
-              <span style={{ color: "#DC2626", fontSize: "12px", fontWeight: 600 }}>View →</span>
+              <div style={{ flex: 1, fontSize: "14px", fontWeight: 800, color: "#991B1B" }}>{dangerousDefects} dangerous defect{dangerousDefects > 1 ? "s" : ""} — requires immediate attention</div>
+              <span style={{ color: "#DC2626", fontSize: "12px", fontWeight: 700 }}>View →</span>
             </div>
           )}
-
           {trialTMs.length > 0 && (
-            <div style={{ padding: "14px 20px", borderRadius: "14px", background: "#FFFBEB", border: "2px solid #FDE68A", marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ padding: "14px 20px", borderRadius: "14px", background: "#FFFBEB", border: "2px solid #FDE68A", marginBottom: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
               <span style={{ fontSize: "22px" }}>⏳</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "14px", fontWeight: 800, color: "#92400E" }}>{trialTMs.length} TM{trialTMs.length > 1 ? "s" : ""} on 7-day free trial</div>
                 <div style={{ fontSize: "12px", color: "#B45309", marginTop: "2px" }}>{trialTMs.map(t => (t.full_name || t.email) + " (" + daysLeft(t.trial_ends_at) + "d left)").join(", ")}</div>
               </div>
               <button onClick={() => { setTab("tms"); setUserFilter("trial"); }}
-                style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #FDE68A", background: "#FFF", fontSize: "11px", fontWeight: 700, color: "#92400E", cursor: "pointer" }}>Manage</button>
+                style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #FDE68A", background: "#FFF", fontSize: "11px", fontWeight: 700, color: "#92400E", cursor: "pointer", fontFamily: "inherit" }}>Manage →</button>
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            {/* TMs list */}
-            <div style={{ background: "#FFF", borderRadius: "16px", padding: "24px", border: "1px solid #E5E7EB" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
-                <h2 style={{ fontSize: "16px", fontWeight: 800 }}>👤 Transport Managers ({tms.length})</h2>
-                <button onClick={() => setShowInviteTM(true)} style={{ padding: "6px 14px", borderRadius: "8px", border: "none", background: "#2563EB", color: "white", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>+ Add</button>
+          {/* Bottom split — TMs + Recent Activity */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "8px" }}>
+
+            {/* TM cards mini */}
+            <div style={{ background: "#FFF", borderRadius: "16px", padding: "20px", border: "1px solid #E5E7EB" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h2 style={{ fontSize: "15px", fontWeight: 800, margin: 0 }}>🚛 Transport Managers</h2>
+                <button onClick={() => setTab("tms")} style={{ padding: "5px 12px", borderRadius: "8px", border: "1px solid #E5E7EB", background: "none", fontSize: "11px", fontWeight: 600, color: "#2563EB", cursor: "pointer", fontFamily: "inherit" }}>View all →</button>
               </div>
-              {tms.length === 0 ? <p style={{ color: "#94A3B8", fontSize: "13px" }}>No TMs yet</p> : tms.map(tm => {
+              {tms.slice(0, 4).map(tm => {
                 const linked = getLinkedCompanies(tm.id);
                 const badge = getTrialBadge(tm);
+                const borderCol = tm.subscription_status === "expired" ? "#EF4444" : tm.subscription_status === "trial" ? "#F59E0B" : "#10B981";
                 return (
-                  <div key={tm.id} onClick={() => setSelectedTM(tm)} className="row-hover"
-                    style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", borderRadius: "10px", border: "1px solid #E5E7EB", marginBottom: "8px", cursor: "pointer", transition: "all 0.15s" }}>
-                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "12px" }}>{initials(tm.full_name)}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 700 }}>{tm.full_name || "No name"}</div>
-                      <div style={{ fontSize: "11px", color: "#6B7280" }}>{tm.email} · {linked.length}/6 companies</div>
+                  <div key={tm.id} onClick={() => setSelectedTM(tm)}
+                    style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", borderRadius: "10px", border: "1px solid #F1F5F9", borderLeft: "3px solid " + borderCol, marginBottom: "8px", cursor: "pointer", transition: "all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.transform = "translateX(2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.transform = "none"; }}>
+                    <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "11px", flexShrink: 0 }}>{initials(tm.full_name)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tm.full_name || "No name"}</div>
+                      <div style={{ fontSize: "11px", color: "#94A3B8" }}>{linked.length}/6 companies · {getLinkedCompanies(tm.id).flatMap(c => getCompanyVehicles(c.id)).length} vehicles</div>
                     </div>
-                    <span style={{ padding: "3px 8px", borderRadius: "8px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700 }}>{badge.label}</span>
-                    {(() => { const as = tm.account_status || "active"; const asCfg = { inactive: { bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB", label: "INACTIVE" }, demo: { bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE", label: "DEMO" } }[as]; return asCfg ? <span style={{ padding: "3px 8px", borderRadius: "8px", background: asCfg.bg, border: "1px solid " + asCfg.border, color: asCfg.color, fontSize: "9px", fontWeight: 700 }}>{asCfg.label}</span> : null; })()}
-                    <span style={{ padding: "3px 8px", borderRadius: "8px", background: "#2563EB15", color: "#2563EB", fontSize: "9px", fontWeight: 700 }}>£49/mo</span>
-                    <span style={{ color: "#94A3B8" }}>→</span>
+                    <span style={{ padding: "2px 7px", borderRadius: "6px", background: badge.bg, color: badge.color, fontSize: "9px", fontWeight: 700, flexShrink: 0 }}>{badge.label}</span>
                   </div>
                 );
               })}
+              {tms.length > 4 && <p style={{ fontSize: "12px", color: "#94A3B8", textAlign: "center", margin: "8px 0 0" }}>+{tms.length - 4} more TMs</p>}
             </div>
 
-            {/* Companies list */}
-            <div style={{ background: "#FFF", borderRadius: "16px", padding: "24px", border: "1px solid #E5E7EB" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
-                <h2 style={{ fontSize: "16px", fontWeight: 800 }}>🏢 Companies ({companies.length})</h2>
-                <button onClick={() => setShowCreateCompany(true)} style={{ padding: "6px 14px", borderRadius: "8px", border: "none", background: "#0F172A", color: "white", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>+ Add</button>
+            {/* Recent activity */}
+            <div style={{ background: "#FFF", borderRadius: "16px", padding: "20px", border: "1px solid #E5E7EB" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h2 style={{ fontSize: "15px", fontWeight: 800, margin: 0 }}>📅 Recent Checks</h2>
+                <button onClick={() => { window.location.href = "/checks"; }} style={{ padding: "5px 12px", borderRadius: "8px", border: "1px solid #E5E7EB", background: "none", fontSize: "11px", fontWeight: 600, color: "#7C3AED", cursor: "pointer", fontFamily: "inherit" }}>View all →</button>
               </div>
-              {companies.map(c => {
-                const v = getCompanyVehicles(c.id).length;
-                const d = getCompanyDefects(c.id).filter(x => x.status === "open" || x.status === "in_progress").length;
-                const tmNames = tmCompanyLinks.filter(l => l.company_id === c.id).map(l => profiles.find(p => p.id === l.tm_id)).filter(Boolean).map(t => t.full_name).join(", ");
-                return (
-                  <div key={c.id} onClick={() => setSelectedCompany(c)} className="row-hover"
-                    style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", borderRadius: "10px", border: "1px solid #E5E7EB", marginBottom: "8px", cursor: "pointer", transition: "all 0.15s" }}>
-                    <span style={{ fontSize: "18px" }}>🏢</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 700 }}>{c.name}</div>
-                      <div style={{ fontSize: "11px", color: "#6B7280" }}>{v} vehicles{tmNames ? " · " + tmNames : " · No TM assigned"}</div>
-                    </div>
-                    {d > 0 && <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#FEF2F2", color: "#DC2626", fontSize: "10px", fontWeight: 700 }}>{d}</span>}
-                    <span style={{ color: "#94A3B8" }}>→</span>
+              {checks.slice(0, 6).map(ch => (
+                <div key={ch.id} onClick={() => { window.location.href = "/checks"; }}
+                  style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", borderRadius: "10px", background: "#F8FAFC", marginBottom: "6px", cursor: "pointer", transition: "all 0.15s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#EFF6FF"} onMouseLeave={e => e.currentTarget.style.background = "#F8FAFC"}>
+                  <span style={{ fontSize: "16px" }}>{ch.result === "pass" ? "✅" : "⚠️"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ch.driver_name || "Unknown driver"} · {ch.vehicle_reg}</div>
+                    <div style={{ fontSize: "10px", color: "#94A3B8" }}>{formatDate(ch.completed_at)}</div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div style={{ background: "#FFF", borderRadius: "16px", padding: "24px", border: "1px solid #E5E7EB", marginTop: "20px" }}>
-            <h2 style={{ fontSize: "16px", fontWeight: 800, marginBottom: "16px" }}>📅 Recent Activity</h2>
-            {checks.slice(0, 5).map(ch => (
-              <div key={ch.id} onClick={() => { window.location.href = "/checks"; }}
-                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", borderRadius: "10px", background: "#F8FAFC", marginBottom: "6px", cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "#EFF6FF"} onMouseLeave={e => e.currentTarget.style.background = "#F8FAFC"}>
-                <span>{ch.result === "pass" ? "✅" : "⚠️"}</span>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: "12px", fontWeight: 600 }}>Walkaround</span>
-                  <span style={{ fontSize: "12px", color: "#6B7280" }}> — {ch.driver_name} · {ch.vehicle_reg}</span>
+                  <span style={{ padding: "2px 7px", borderRadius: "6px", background: ch.result === "pass" ? "#ECFDF5" : "#FEF2F2", color: ch.result === "pass" ? "#059669" : "#DC2626", fontSize: "9px", fontWeight: 700 }}>{ch.result?.toUpperCase() || "—"}</span>
                 </div>
-                <span style={{ fontSize: "11px", color: "#94A3B8" }}>{formatDate(ch.completed_at)}</span>
-              </div>
-            ))}
-            {checks.length === 0 && <p style={{ color: "#94A3B8", fontSize: "13px", textAlign: "center", padding: "20px" }}>No activity yet</p>}
+              ))}
+              {checks.length === 0 && (
+                <div style={{ textAlign: "center", padding: "30px", color: "#94A3B8" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "8px" }}>📋</div>
+                  <p style={{ fontSize: "12px", fontWeight: 600 }}>No checks yet</p>
+                </div>
+              )}
+            </div>
           </div>
         </>)}
 
@@ -552,36 +541,63 @@ export default function SuperAdmin() {
         </>)}
 
         {tab === "revenue" && (<>
-          <h1 style={{ fontSize: "26px", fontWeight: 800, marginBottom: "24px" }}>💰 Revenue & Pricing</h1>
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+            <div>
+              <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>💰 Revenue & Billing</h1>
+              <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Platform-wide subscription and revenue overview</p>
+            </div>
+          </div>
 
-          {/* ✅ FIXED: Revenue stat cards are clickable */}
+          {/* 4 KPI cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
-            <StatCard icon="💰" value={"£" + mrrNow} label="MRR (Paying)" accent="#059669" onClick={() => setTab("tms")} tooltip="Click to view paying TMs" />
-            <StatCard icon="📈" value={"£" + (mrrNow * 12).toLocaleString()} label="ARR" accent="#2563EB" />
-            <StatCard icon="👥" value={activeTMs.length} label="Paying TMs" accent="#0F172A" onClick={() => { setTab("tms"); setUserFilter("tm"); }} tooltip="Click to view TM list" />
-            <StatCard icon="⏳" value={trialTMs.length} label="On Trial" accent="#D97706" onClick={() => { setTab("tms"); setUserFilter("trial"); }} tooltip="Click to view trial accounts" />
+            {[
+              { icon: "💰", label: "Monthly Revenue", value: "£" + mrrNow, sub: "from paying TMs", color: "#059669", bg: "#ECFDF5", border: "#A7F3D0", onClick: () => {} },
+              { icon: "📈", label: "Annual Revenue", value: "£" + (mrrNow * 12).toLocaleString(), sub: "projected ARR", color: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", onClick: () => {} },
+              { icon: "✅", label: "Paying TMs", value: activeTMs.length, sub: "active subscriptions", color: "#0F172A", bg: "#F8FAFC", border: "#E5E7EB", onClick: () => { setTab("tms"); setUserFilter("active"); } },
+              { icon: "⏳", label: "On Trial", value: trialTMs.length, sub: "7-day free trial", color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", onClick: () => { setTab("tms"); setUserFilter("trial"); } },
+            ].map(s => (
+              <div key={s.label} onClick={s.onClick}
+                style={{ background: "#FFF", borderRadius: "16px", padding: "20px", border: "1px solid " + s.border, cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = s.bg; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#FFF"; e.currentTarget.style.transform = "none"; }}>
+                <div style={{ fontSize: "28px", marginBottom: "8px" }}>{s.icon}</div>
+                <div style={{ fontSize: "26px", fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginTop: "4px" }}>{s.label}</div>
+                <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{s.sub}</div>
+              </div>
+            ))}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
+            {/* TM billing cards */}
             <div style={{ background: "#FFF", borderRadius: "16px", padding: "24px", border: "1px solid #E5E7EB" }}>
-              <h2 style={{ fontSize: "16px", fontWeight: 800, marginBottom: "16px" }}>Revenue by TM</h2>
+              <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "16px" }}>💳 TM Billing Status</h2>
               {tms.map(tm => {
                 const badge = getTrialBadge(tm);
                 const isPaying = (tm.subscription_status || "active") === "active";
+                const isExpired = tm.subscription_status === "expired";
+                const linked = getLinkedCompanies(tm.id);
+                const borderCol = isPaying ? "#10B981" : isExpired ? "#EF4444" : "#F59E0B";
                 return (
-                  <div key={tm.id} onClick={() => { setTab("overview"); setSelectedTM(tm); }}
-                    style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px", borderRadius: "12px", border: "1px solid #E5E7EB", marginBottom: "8px", cursor: "pointer", opacity: isPaying ? 1 : 0.6, transition: "all 0.15s" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = ""}>
-                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "12px" }}>{initials(tm.full_name)}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 700 }}>{tm.full_name}</div>
-                      <div style={{ fontSize: "11px", color: "#6B7280" }}>{getLinkedCompanies(tm.id).length} companies</div>
+                  <div key={tm.id} onClick={() => setSelectedTM(tm)}
+                    style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", borderRadius: "12px", border: "1px solid #F1F5F9", borderLeft: "3px solid " + borderCol, marginBottom: "8px", cursor: "pointer", transition: "all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.transform = "translateX(2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.transform = "none"; }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "12px", flexShrink: 0 }}>{initials(tm.full_name)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tm.full_name}</div>
+                      <div style={{ fontSize: "11px", color: "#94A3B8" }}>{linked.length} companies · joined {formatDate(tm.created_at)}</div>
                     </div>
-                    <span style={{ padding: "3px 8px", borderRadius: "8px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700 }}>{badge.label}</span>
-                    <div style={{ fontSize: "16px", fontWeight: 800, color: isPaying ? "#059669" : "#94A3B8" }}>{isPaying ? "£49" : "£0"}</div>
+                    <span style={{ padding: "3px 8px", borderRadius: "6px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700, flexShrink: 0 }}>{badge.label}</span>
+                    <div style={{ fontSize: "16px", fontWeight: 800, color: isPaying ? "#059669" : "#94A3B8", flexShrink: 0 }}>{isPaying ? "£49" : "£0"}</div>
                   </div>
                 );
               })}
+              <div style={{ marginTop: "16px", padding: "14px", borderRadius: "12px", background: "#F8FAFC", border: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#374151" }}>Total MRR</span>
+                <span style={{ fontSize: "20px", fontWeight: 800, color: "#059669" }}>£{mrrNow}/mo</span>
+              </div>
             </div>
 
             <div style={{ background: "#FFF", borderRadius: "16px", padding: "24px", border: "1px solid #E5E7EB" }}>
@@ -1136,4 +1152,5 @@ export default function SuperAdmin() {
     </div>
   );
 }
+
 
