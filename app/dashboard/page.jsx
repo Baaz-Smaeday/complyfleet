@@ -1,4 +1,4 @@
-"use client"; // v3
+"use client";
 export const dynamic = "force-dynamic";
 import { useState, useEffect, useRef } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
@@ -307,7 +307,7 @@ export default function ComplyFleetDashboard() {
     } else { loadData(null); }
   }, []);
 
-  async function addCompany(userProfile) {
+  async function addCompany() {
     if (!newCompany.name.trim()) return;
     setAddingCompany(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -323,7 +323,7 @@ export default function ComplyFleetDashboard() {
     setShowAddCompany(false);
     setNewCompany({ name: "", o_licence: "", contact_email: "", contact_phone: "", address: "" });
     setAddingCompany(false);
-    loadData(userProfile);
+    loadData(profile);
   }
 
   async function loadData(userProfile) {
@@ -472,14 +472,14 @@ export default function ComplyFleetDashboard() {
 
               {/* Companies */}
               {selectedCompany === "all" && (
-                <Section title="🏢 Operator Companies" glowColor="37,99,235" rightContent={<a href="/company" style={{ padding: "7px 16px", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "12px", textDecoration: "none" }}>+ Add Company</a>}>
+                <Section title="🏢 Operator Companies" glowColor="37,99,235" rightContent={<button onClick={() => setShowAddCompany(true)} style={{ padding: "7px 16px", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "12px", border: "none", cursor: "pointer" }}>+ Add Company</button>}>
                   {companies.length === 0
                     ? (
                       <div style={{ textAlign: "center", padding: "40px 32px" }}>
                         <div style={{ fontSize: "40px", marginBottom: "12px" }}>🏢</div>
                         <div style={{ fontWeight: 800, fontSize: "15px", color: "#111827", marginBottom: "6px" }}>No companies yet</div>
                         <div style={{ fontSize: "12px", color: "#94A3B8", marginBottom: "20px" }}>Add your first operator company to get started</div>
-                        <a href="/company" style={{ display: "inline-block", padding: "10px 24px", borderRadius: "12px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "13px", textDecoration: "none" }}>+ Add Company</a>
+                        <button onClick={() => setShowAddCompany(true)} style={{ display: "inline-block", padding: "10px 24px", borderRadius: "12px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "13px", border: "none", cursor: "pointer" }}>+ Add Company</button>
                       </div>
                     )
                     : (<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "10px" }}>
@@ -608,7 +608,7 @@ export default function ComplyFleetDashboard() {
       <footer style={{ textAlign: "center", padding: "24px 20px", marginTop: "40px", borderTop: "1px solid #E2E8F0", color: "#94A3B8", fontSize: "11px" }}>
         ComplyFleet v1.0 · DVSA Compliance Platform · © 2026
       </footer>
-    </div>
+
   {showAddCompany && (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
       onClick={() => setShowAddCompany(false)}>
@@ -644,5 +644,6 @@ export default function ComplyFleetDashboard() {
       </div>
     </div>
   )}
+    </div>
   );
 }
