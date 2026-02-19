@@ -301,7 +301,14 @@ export default function ComplyFleetDashboard() {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) { window.location.href = "/login"; return; }
         supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
-          if (data) { setProfile(data); loadData(data); }
+         if (data) {
+  if (data.subscription_status === "inactive" || data.subscription_status === "expired") {
+    window.location.href = "/suspended?reason=" + data.subscription_status;
+    return;
+  }
+  setProfile(data);
+  loadData(data);
+}
         });
       });
     } else { loadData(null); }
