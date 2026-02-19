@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.5";
+const VERSION = "v5.6";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -105,6 +105,23 @@ export default function SuperAdmin() {
     flash("Company → " + status);
     // Update selectedCompany immediately so buttons reflect new state without waiting for loadData
     setSelectedCompany(prev => prev && prev.id === cid ? { ...prev, status } : prev);
+    loadData();
+  }
+  async function createStaff(e) {
+    e.preventDefault();
+    const { email, full_name, password, can_manage_tms, can_manage_companies, can_view_revenue, can_delete } = staffForm;
+    if (!email || !full_name || !password) { flash("Please fill all fields", "error"); return; }
+    // Create auth user via Supabase admin
+    const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password, options: { data: { full_name } } });
+    if (authErr) { flash("Error: " + authErr.message, "error"); return; }
+    // Set role and permissions in profiles
+    await supabase.from("profiles").update({
+      full_name, role: "staff",
+      can_manage_tms, can_manage_companies, can_view_revenue, can_delete
+    }).eq("id", authData.user.id);
+    flash("Staff member created!");
+    setShowInviteStaff(false);
+    setStaffForm({ email: "", full_name: "", password: "", can_manage_tms: true, can_manage_companies: true, can_view_revenue: false, can_delete: false });
     loadData();
   }
   async function setTMStatus(tid, status) {
@@ -825,6 +842,58 @@ export default function SuperAdmin() {
       </main>
 
       {/* === CREATE TM MODAL === */}
+      {/* ===== STAFF MODAL ===== */}
+      {showInviteStaff && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
+          <div style={{ background: "#FFF", borderRadius: "20px", padding: "32px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+              <h2 style={{ fontSize: "20px", fontWeight: 800, margin: 0 }}>👥 Add Staff Member</h2>
+              <button onClick={() => setShowInviteStaff(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94A3B8" }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <label style={labelStyle}>Full Name</label>
+              <input style={inputStyle} placeholder="e.g. Sarah Jones" value={staffForm.full_name} onChange={e => setStaffForm(p => ({ ...p, full_name: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={labelStyle}>Email</label>
+              <input style={inputStyle} type="email" placeholder="sarah@complyfleet.com" value={staffForm.email} onChange={e => setStaffForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div style={{ marginBottom: "24px" }}>
+              <label style={labelStyle}>Temporary Password</label>
+              <input style={inputStyle} type="password" placeholder="They can change this later" value={staffForm.password} onChange={e => setStaffForm(p => ({ ...p, password: e.target.value }))} />
+            </div>
+
+            <div style={{ marginBottom: "24px" }}>
+              <label style={{ ...labelStyle, marginBottom: "12px" }}>🔐 Permissions</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                {[
+                  { key: "can_manage_tms", icon: "🚛", label: "Manage TMs", desc: "Activate, deactivate, link companies" },
+                  { key: "can_manage_companies", icon: "🏢", label: "Manage Companies", desc: "Edit status, view details" },
+                  { key: "can_view_revenue", icon: "💰", label: "View Revenue", desc: "See billing and MRR data" },
+                  { key: "can_delete", icon: "🗑️", label: "Delete Records", desc: "Remove TMs, companies" },
+                ].map(p => (
+                  <div key={p.key} onClick={() => setStaffForm(prev => ({ ...prev, [p.key]: !prev[p.key] }))}
+                    style={{ padding: "12px", borderRadius: "10px", border: staffForm[p.key] ? "2px solid #7C3AED" : "1px solid #E5E7EB", background: staffForm[p.key] ? "#F5F3FF" : "#FAFAFA", cursor: "pointer", transition: "all 0.15s" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <span style={{ fontSize: "18px" }}>{p.icon}</span>
+                      <span style={{ fontSize: "16px" }}>{staffForm[p.key] ? "✅" : "⬜"}</span>
+                    </div>
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: "#0F172A", marginTop: "6px" }}>{p.label}</div>
+                    <div style={{ fontSize: "10px", color: "#94A3B8" }}>{p.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={createStaff}
+              style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "none", background: "#7C3AED", color: "white", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              Create Staff Account
+            </button>
+          </div>
+        </div>
+      )}
+
       {showInviteTM && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={() => setShowInviteTM(false)}>
           <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "440px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
