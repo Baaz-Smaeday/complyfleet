@@ -1,10 +1,10 @@
-"use client";
+a"use client";
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.10";
+const VERSION = "v5.11";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -12,6 +12,24 @@ const PLANS = {
   tm: { price: 49, label: "TM Plan", maxCompanies: 6, maxVehicles: 60, color: "#2563EB" },
   company: { price: 29, label: "Company Plan", maxCompanies: 1, maxVehicles: 999, color: "#059669" },
 };
+
+function GlowCard({ children, color = "59,130,246", style = {}, onClick }) {
+  const [h, setH] = useState(false);
+  return (
+    <div style={{ position: "relative", borderRadius: "18px", cursor: onClick ? "pointer" : "default", ...style }}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} onClick={onClick}>
+      <div style={{ position: "absolute", inset: "-2px", borderRadius: "20px", zIndex: 0, pointerEvents: "none",
+        background: h ? `conic-gradient(from var(--angle), transparent 0%, rgba(${color},0.85) 20%, rgba(${color},0.3) 40%, transparent 60%, rgba(${color},0.6) 80%, transparent 100%)` : "transparent",
+        animation: h ? "spin 2s linear infinite" : "none" }} />
+      <div style={{ position: "relative", zIndex: 1, borderRadius: "16px", background: "#FFF", height: "100%", overflow: "hidden",
+        transform: h ? "translateY(-3px)" : "none",
+        boxShadow: h ? `0 16px 40px rgba(${color},0.2), 0 4px 12px rgba(0,0,0,0.06)` : "0 1px 3px rgba(0,0,0,0.05)",
+        transition: "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function SuperAdmin() {
   const [profile, setProfile] = useState(null);
@@ -217,6 +235,9 @@ export default function SuperAdmin() {
     <div style={{ minHeight: "100vh", background: "#F1F5F9", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
+        @property --angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+        @keyframes spin { to { --angle: 360deg; } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         input:focus, select:focus { border-color: #3B82F6 !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important; }
         .row-hover:hover { background: #F8FAFC !important; border-color: #3B82F6 !important; }
@@ -294,7 +315,7 @@ export default function SuperAdmin() {
             ].map(s => (
               <div key={s.label} onClick={s.onClick}
                 style={{ background: "#FFF", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E5E7EB", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "16px" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = s.accent; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = s.accent; e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 16px 40px ${s.accent}30`; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
                 <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", flexShrink: 0 }}>{s.icon}</div>
                 <div style={{ flex: 1 }}>
@@ -345,8 +366,8 @@ export default function SuperAdmin() {
                 return (
                   <div key={tm.id} onClick={() => setSelectedTM(tm)}
                     style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", borderRadius: "10px", border: "1px solid #F1F5F9", borderLeft: "3px solid " + borderCol, marginBottom: "8px", cursor: "pointer", transition: "all 0.15s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.transform = "translateX(2px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.transform = "none"; }}>
+                    onMouseEnter={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.transform = "translateX(4px)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.12)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
                     <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "11px", flexShrink: 0 }}>{initials(tm.full_name)}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tm.full_name || "No name"}</div>
@@ -582,8 +603,8 @@ export default function SuperAdmin() {
             ].map(s => (
               <div key={s.label} onClick={s.onClick}
                 style={{ background: "#FFF", borderRadius: "16px", padding: "20px", border: "1px solid " + s.border, cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.background = s.bg; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "#FFF"; e.currentTarget.style.transform = "none"; }}>
+                onMouseEnter={e => { e.currentTarget.style.background = s.bg; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,0.1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#FFF"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
                 <div style={{ fontSize: "28px", marginBottom: "8px" }}>{s.icon}</div>
                 <div style={{ fontSize: "26px", fontWeight: 800, color: s.color }}>{s.value}</div>
                 <div style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginTop: "4px" }}>{s.label}</div>
@@ -605,8 +626,8 @@ export default function SuperAdmin() {
                 return (
                   <div key={tm.id} onClick={() => setSelectedTM(tm)}
                     style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", borderRadius: "12px", border: "1px solid #F1F5F9", borderLeft: "3px solid " + borderCol, marginBottom: "8px", cursor: "pointer", transition: "all 0.15s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#F8FAFC"; e.currentTarget.style.transform = "translateX(2px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.transform = "none"; }}>
+                    onMouseEnter={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.transform = "translateX(4px)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.12)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
                     <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "12px", flexShrink: 0 }}>{initials(tm.full_name)}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "13px", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tm.full_name}</div>
@@ -728,10 +749,10 @@ export default function SuperAdmin() {
                 const accStatus = p.account_status || "active";
                 const borderColor = accStatus === "demo" ? "#3B82F6" : accStatus === "inactive" ? "#9CA3AF" : p.subscription_status === "expired" ? "#EF4444" : p.subscription_status === "trial" ? "#F59E0B" : "#10B981";
                 return (
-                  <div key={p.id} onClick={() => setSelectedTM(p)}
-                    style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", borderLeft: "4px solid " + borderColor, padding: "18px 20px", cursor: "pointer", transition: "all 0.15s", position: "relative" }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+                  <GlowCard key={p.id} onClick={() => setSelectedTM(p)}
+                    color={p.subscription_status === "expired" ? "239,68,68" : p.subscription_status === "trial" ? "245,158,11" : "16,185,129"}
+                    style={{ marginBottom: "0" }}>
+                    <div style={{ borderLeft: "4px solid " + borderColor, padding: "18px 20px", position: "relative" }}>
 
                     {/* Subscription badge top right */}
                     <span style={{ position: "absolute", top: "14px", right: "14px", padding: "3px 8px", borderRadius: "10px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700 }}>{badge.label}</span>
@@ -798,6 +819,7 @@ export default function SuperAdmin() {
                       <button onClick={() => deleteUser(p.id, p.email)} style={{ padding: "5px 10px", borderRadius: "8px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "11px", fontWeight: 700, color: "#DC2626", cursor: "pointer", marginLeft: "auto" }}>🗑</button>
                     </div>
                   </div>
+                  </GlowCard>
                 );
               })}
             </div>
@@ -874,10 +896,10 @@ export default function SuperAdmin() {
                   demo: { label: "DEMO", bg: "#EFF6FF", color: "#2563EB" },
                 }[cStatus];
                 return (
-                  <div key={c.id} onClick={() => setSelectedCompany(c)}
-                    style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", borderLeft: "4px solid " + borderColor, padding: "18px 20px", cursor: "pointer", transition: "all 0.15s", position: "relative" }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+                  <GlowCard key={c.id} onClick={() => setSelectedCompany(c)}
+                    color={cStatus === "demo" ? "37,99,235" : cStatus === "inactive" ? "107,114,128" : linkedTMs.length === 0 ? "239,68,68" : "16,185,129"}
+                    style={{ marginBottom: "0" }}>
+                    <div style={{ borderLeft: "4px solid " + borderColor, padding: "18px 20px", position: "relative" }}>
 
                     {/* Status badge top right */}
                     <span style={{ position: "absolute", top: "14px", right: "14px", padding: "3px 8px", borderRadius: "10px", background: statusCfg.bg, color: statusCfg.color, fontSize: "9px", fontWeight: 700 }}>{statusCfg.label}</span>
@@ -919,6 +941,7 @@ export default function SuperAdmin() {
                       </div>
                     </div>
                   </div>
+                  </GlowCard>
                 );
               })}
             </div>
@@ -1069,9 +1092,9 @@ export default function SuperAdmin() {
                 const isActive = (u.account_status || "active") === "active";
                 const isOwner = u.role === "platform_owner";
                 return (
-                  <div key={u.id} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr auto", gap: "12px", padding: "14px 20px", borderBottom: i < allUsers.length - 1 ? "1px solid #F1F5F9" : "none", alignItems: "center", background: isOwner ? "#FFFAF0" : "white", transition: "background 0.15s" }}
-                    onMouseEnter={e => { if (!isOwner) e.currentTarget.style.background = "#F8FAFC"; }}
-                    onMouseLeave={e => { if (!isOwner) e.currentTarget.style.background = "white"; }}>
+                  <div key={u.id} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr auto", gap: "12px", padding: "14px 20px", borderBottom: i < allUsers.length - 1 ? "1px solid #F1F5F9" : "none", alignItems: "center", background: isOwner ? "#FFFAF0" : "white", transition: "all 0.2s ease" }}
+                    onMouseEnter={e => { if (!isOwner) { e.currentTarget.style.background = u.role === "staff" ? "#F5F3FF" : "#EFF6FF"; e.currentTarget.style.transform = "translateX(3px)"; e.currentTarget.style.boxShadow = u.role === "staff" ? "inset 3px 0 0 #7C3AED" : "inset 3px 0 0 #2563EB"; }}}
+                    onMouseLeave={e => { if (!isOwner) { e.currentTarget.style.background = "white"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}}>
 
                     {/* Name + avatar */}
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
