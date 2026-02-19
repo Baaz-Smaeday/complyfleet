@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.9";
+const VERSION = "v5.10";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -111,19 +111,41 @@ export default function SuperAdmin() {
   async function createStaff(e) {
     e.preventDefault();
     const { email, full_name, password, can_manage_tms, can_manage_companies, can_view_revenue, can_delete } = staffForm;
-    if (!email || !full_name || !password) { flash("Please fill all fields", "error"); return; }
-    // Create auth user via Supabase admin
-    const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password, options: { data: { full_name } } });
-    if (authErr) { flash("Error: " + authErr.message, "error"); return; }
-    // Set role and permissions in profiles
-    await supabase.from("profiles").update({
-      full_name, role: "staff",
-      can_manage_tms, can_manage_companies, can_view_revenue, can_delete
-    }).eq("id", authData.user.id);
-    flash("Staff member created!");
+    if (!email || !full_name) { flash("Please fill name and email", "error"); return; }
+    // Check if user already exists in profiles
+    const { data: existing } = await supabase.from("profiles").select("id, role").eq("email", email).single();
+    if (existing) {
+      // User exists — just update their role and permissions
+      await supabase.from("profiles").update({
+        full_name, role: "staff",
+        can_manage_tms, can_manage_companies, can_view_revenue, can_delete
+      }).eq("id", existing.id);
+      flash("Existing user promoted to Staff!");
+    } else {
+      // New user — create auth account
+      if (!password) { flash("Password required for new users", "error"); return; }
+      const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password, options: { data: { full_name } } });
+      if (authErr) { flash("Error: " + authErr.message, "error"); return; }
+      await supabase.from("profiles").update({
+        full_name, role: "staff",
+        can_manage_tms, can_manage_companies, can_view_revenue, can_delete
+      }).eq("id", authData.user.id);
+      flash("New staff member created!");
+    }
     setShowInviteStaff(false);
     setStaffForm({ email: "", full_name: "", password: "", can_manage_tms: true, can_manage_companies: true, can_view_revenue: false, can_delete: false });
     loadData();
+  }
+  async function toggleUserActive(uid, currentlyActive) {
+    const newStatus = currentlyActive ? "inactive" : "active";
+    await supabase.from("profiles").update({ account_status: newStatus }).eq("id", uid);
+    flash(currentlyActive ? "User deactivated" : "User activated");
+    loadData();
+  }
+  async function resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) { flash("Error: " + error.message, "error"); return; }
+    flash("Password reset email sent to " + email);
   }
   async function setTMStatus(tid, status) {
     await supabase.from("profiles").update({ account_status: status }).eq("id", tid);
@@ -216,6 +238,7 @@ export default function SuperAdmin() {
             { k: "staff", l: "👥 Staff" },
             { k: "tms", l: "🚛 TMs" },
             { k: "companies", l: "🏢 Companies" },
+            { k: "users", l: "👤 Users" },
           ].map(t => (
             <button key={t.k} onClick={() => { setTab(t.k); setSelectedCompany(null); setSelectedTM(null); }}
               style={{ padding: "6px 14px", borderRadius: "8px", border: "none", background: tab === t.k ? "rgba(255,255,255,0.15)" : "none", color: tab === t.k ? "white" : "#94A3B8", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -995,6 +1018,104 @@ export default function SuperAdmin() {
       </main>
 
       {/* === CREATE TM MODAL === */}
+        {/* ===== USERS TAB ===== */}
+        {tab === "users" && (() => {
+          const allUsers = [...profiles].sort((a, b) => {
+            const order = { platform_owner: 0, staff: 1, tm: 2 };
+            return (order[a.role] ?? 3) - (order[b.role] ?? 3);
+          });
+          const roleConfig = {
+            platform_owner: { label: "OWNER", bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
+            staff: { label: "STAFF", bg: "#F5F3FF", color: "#7C3AED", border: "#DDD6FE" },
+            tm: { label: "TM", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
+          };
+          return (<>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>👤 All Users</h1>
+                <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>{allUsers.length} accounts across the platform</p>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
+              {[
+                { label: "Platform Owner", count: profiles.filter(p => p.role === "platform_owner").length, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: "👑" },
+                { label: "Staff Members", count: profiles.filter(p => p.role === "staff").length, color: "#7C3AED", bg: "#F5F3FF", border: "#DDD6FE", icon: "👥" },
+                { label: "Transport Managers", count: tms.length, color: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE", icon: "🚛" },
+              ].map(s => (
+                <div key={s.label} style={{ background: "#FFF", border: "1px solid " + s.border, borderRadius: "14px", padding: "16px 20px", display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "28px" }}>{s.icon}</span>
+                  <div>
+                    <div style={{ fontSize: "24px", fontWeight: 800, color: s.color }}>{s.count}</div>
+                    <div style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* User rows */}
+            <div style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", overflow: "hidden" }}>
+              {/* Table header */}
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr auto", gap: "12px", padding: "12px 20px", background: "#F8FAFC", borderBottom: "1px solid #E5E7EB" }}>
+                {["User", "Email", "Role", "Status", "Joined", "Actions"].map(h => (
+                  <div key={h} style={{ fontSize: "10px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>{h}</div>
+                ))}
+              </div>
+
+              {/* User rows */}
+              {allUsers.map((u, i) => {
+                const rCfg = roleConfig[u.role] || { label: u.role?.toUpperCase(), bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" };
+                const isActive = (u.account_status || "active") === "active";
+                const isOwner = u.role === "platform_owner";
+                return (
+                  <div key={u.id} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr auto", gap: "12px", padding: "14px 20px", borderBottom: i < allUsers.length - 1 ? "1px solid #F1F5F9" : "none", alignItems: "center", background: isOwner ? "#FFFAF0" : "white", transition: "background 0.15s" }}
+                    onMouseEnter={e => { if (!isOwner) e.currentTarget.style.background = "#F8FAFC"; }}
+                    onMouseLeave={e => { if (!isOwner) e.currentTarget.style.background = "white"; }}>
+
+                    {/* Name + avatar */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: isOwner ? "linear-gradient(135deg, #DC2626, #B91C1C)" : u.role === "staff" ? "linear-gradient(135deg, #7C3AED, #6D28D9)" : "linear-gradient(135deg, #2563EB, #1D4ED8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "11px", flexShrink: 0 }}>
+                        {(u.full_name || u.email || "?").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.full_name || "—"}</div>
+                    </div>
+
+                    {/* Email */}
+                    <div style={{ fontSize: "12px", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.email}</div>
+
+                    {/* Role badge */}
+                    <span style={{ padding: "3px 10px", borderRadius: "20px", background: rCfg.bg, border: "1px solid " + rCfg.border, color: rCfg.color, fontSize: "10px", fontWeight: 700, display: "inline-block" }}>{rCfg.label}</span>
+
+                    {/* Active/Inactive toggle */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div onClick={() => !isOwner && toggleUserActive(u.id, isActive)}
+                        style={{ width: "36px", height: "20px", borderRadius: "10px", background: isActive ? "#10B981" : "#D1D5DB", cursor: isOwner ? "default" : "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                        <div style={{ position: "absolute", top: "2px", left: isActive ? "18px" : "2px", width: "16px", height: "16px", borderRadius: "50%", background: "white", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                      </div>
+                      <span style={{ fontSize: "11px", color: isActive ? "#059669" : "#94A3B8", fontWeight: 600 }}>{isActive ? "Active" : "Off"}</span>
+                    </div>
+
+                    {/* Joined */}
+                    <div style={{ fontSize: "11px", color: "#94A3B8" }}>{formatDate(u.created_at)}</div>
+
+                    {/* Actions */}
+                    <div style={{ display: "flex", gap: "4px" }} onClick={e => e.stopPropagation()}>
+                      {!isOwner && (
+                        <>
+                          <button onClick={() => resetPassword(u.email)} title="Send password reset" style={{ padding: "5px 8px", borderRadius: "7px", border: "1px solid #E5E7EB", background: "#F8FAFC", fontSize: "11px", cursor: "pointer", fontFamily: "inherit" }}>🔑</button>
+                          <button onClick={() => deleteUser(u.id, u.email)} title="Delete user" style={{ padding: "5px 8px", borderRadius: "7px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "11px", cursor: "pointer" }}>🗑</button>
+                        </>
+                      )}
+                      {isOwner && <span style={{ fontSize: "11px", color: "#94A3B8" }}>Protected</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>);
+        })()}
+
       {/* ===== STAFF MODAL ===== */}
       {showInviteStaff && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
@@ -1152,5 +1273,6 @@ export default function SuperAdmin() {
     </div>
   );
 }
+
 
 
