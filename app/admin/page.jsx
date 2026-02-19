@@ -268,7 +268,7 @@ export default function SuperAdmin() {
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", position: "relative" }}>
-          <a href="/dashboard" style={{ color: "#94A3B8", fontSize: "12px", fontWeight: 600, textDecoration: "none" }}>← Dashboard</a>
+          <a href="/admin" style={{ color: "#94A3B8", fontSize: "12px", fontWeight: 600, textDecoration: "none" }}>← Admin</a>
           <div onClick={() => setShowUserMenu(!showUserMenu)} style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #EF4444, #DC2626)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>{initials(profile?.full_name)}</div>
           {showUserMenu && (
             <div style={{ position: "absolute", right: 0, top: "48px", background: "white", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.15)", padding: "8px", minWidth: "200px", zIndex: 200 }}>
