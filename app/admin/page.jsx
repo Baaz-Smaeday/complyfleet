@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.7";
+const VERSION = "v5.8";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -632,87 +632,144 @@ export default function SuperAdmin() {
           </div>
         </>)}
 
-        {/* ===== USERS ===== */}
-        {tab === "tms" && (<>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h1 style={{ fontSize: "26px", fontWeight: 800 }}>🚛 Transport Managers ({tms.length})</h1>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>🏢 + Company</button>
-              <button onClick={() => setShowInviteTM(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#2563EB", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>👤 + TM</button>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "6px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
-            {[
-              { k: "all", l: "All TMs", c: tms.length },
-              { k: "active", l: "✅ Active", c: tms.filter(p => p.subscription_status === "active").length },
-              { k: "trial", l: "⏳ On Trial", c: trialTMs.length },
-              { k: "expired", l: "❌ Expired", c: tms.filter(p => p.subscription_status === "expired").length },
-            ].map(f => (
-              <button key={f.k} onClick={() => setUserFilter(f.k)}
-                style={{ padding: "6px 14px", borderRadius: "20px", border: userFilter === f.k ? "none" : "1px solid #E5E7EB", background: userFilter === f.k ? "#0F172A" : "white", color: userFilter === f.k ? "white" : "#6B7280", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                {f.l} ({f.c})
-              </button>
-            ))}
-          </div>
-
-          {filteredTMs.map(p => {
-            const linked = p.role === "tm" ? getLinkedCompanies(p.id) : [];
-            const badge = getTrialBadge(p);
-            return (
-              <div key={p.id} style={{ background: p.role === "platform_owner" ? "#FFF8F8" : "#FFF", borderRadius: "14px", border: p.role === "platform_owner" ? "1px solid #FECACA" : "1px solid #E5E7EB", padding: "18px 24px", marginBottom: "10px", borderLeft: p.role === "platform_owner" ? "4px solid #DC2626" : "1px solid #E5E7EB" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                  <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "14px" }}>{initials(p.full_name)}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "15px", fontWeight: 700 }}>{p.full_name || "No name"}</div>
-                    <div style={{ fontSize: "12px", color: "#6B7280" }}>{p.email} · {formatDate(p.created_at)}</div>
-                  </div>
-                  <span style={{ padding: "3px 10px", borderRadius: "8px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700 }}>{badge.label}</span>
-
-                  {/* ✅ FIXED: Only TM badge — no dropdown with Admin/Viewer options */}
-                  {p.role !== "platform_owner" && (
-                    <span style={{ padding: "4px 12px", borderRadius: "20px", background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", fontSize: "10px", fontWeight: 700 }}>TM</span>
-                  )}
-                  {/* Account status badge */}
-                  {p.role === "tm" && (() => {
-                    const as = p.account_status || "active";
-                    const asCfg = { active: null, inactive: { bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB", label: "INACTIVE" }, demo: { bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE", label: "DEMO" } }[as];
-                    return asCfg ? <span style={{ padding: "4px 12px", borderRadius: "20px", background: asCfg.bg, border: "1px solid " + asCfg.border, color: asCfg.color, fontSize: "10px", fontWeight: 700 }}>{asCfg.label}</span> : null;
-                  })()}
-                  {p.role === "platform_owner" && (
-                    <span style={{ padding: "4px 12px", borderRadius: "20px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", fontSize: "10px", fontWeight: 700 }}>OWNER</span>
-                  )}
-
-                  {p.role !== "platform_owner" && (
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      {p.subscription_status === "trial" && (
-                        <button onClick={() => activateUser(p.id)} title="Activate" style={{ padding: "6px 10px", borderRadius: "8px", border: "none", background: "#059669", color: "white", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>✅ Activate</button>
-                      )}
-                      {(p.subscription_status === "active") && (
-                        <button onClick={() => expireUser(p.id)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "10px", fontWeight: 700, color: "#DC2626", cursor: "pointer" }}>⏸ Expire</button>
-                      )}
-                      <button onClick={() => deleteUser(p.id, p.email)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "11px", fontWeight: 700, color: "#DC2626", cursor: "pointer" }}>🗑</button>
-                    </div>
-                  )}
-                </div>
-
-                {p.role === "tm" && (
-                  <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #F3F4F6", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
-                    <span style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>Companies ({linked.length}/6):</span>
-                    {linked.map(c => (
-                      <span key={c.id} style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 10px", borderRadius: "20px", background: "#EFF6FF", border: "1px solid #BFDBFE", fontSize: "11px", fontWeight: 600, color: "#2563EB" }}>
-                        {c.name}
-                        <button onClick={() => unlinkCompany(p.id, c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#93C5FD", fontWeight: 700 }}>✕</button>
-                      </span>
-                    ))}
-                    {linked.length < 6 && (
-                      <button onClick={() => setShowLinkCompany(p.id)} style={{ padding: "3px 10px", borderRadius: "20px", border: "1px dashed #D1D5DB", background: "none", fontSize: "11px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>+ Link</button>
-                    )}
-                  </div>
-                )}
+        {/* ===== TMs TAB ===== */}
+        {tab === "tms" && (() => {
+          const activeTMList = tms.filter(p => p.subscription_status === "active");
+          const trialTMList = tms.filter(p => p.subscription_status === "trial");
+          const expiredTMList = tms.filter(p => p.subscription_status === "expired");
+          const filteredList = userFilter === "active" ? activeTMList : userFilter === "trial" ? trialTMList : userFilter === "expired" ? expiredTMList : tms;
+          return (<>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>🚛 Transport Managers</h1>
+                <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>{tms.length} TMs across the platform</p>
               </div>
-            );
-          })}
-        </>)}
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🏢 + Company</button>
+                <button onClick={() => setShowInviteTM(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#2563EB", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🚛 + TM</button>
+              </div>
+            </div>
+
+            {/* Stats bar */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
+              {[
+                { label: "Active", count: activeTMList.length, color: "#059669", bg: "#ECFDF5", border: "#A7F3D0", icon: "✅", filter: "active" },
+                { label: "On Trial", count: trialTMList.length, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", icon: "⏳", filter: "trial" },
+                { label: "Expired", count: expiredTMList.length, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: "❌", filter: "expired" },
+              ].map(s => (
+                <div key={s.filter} onClick={() => setUserFilter(userFilter === s.filter ? "all" : s.filter)}
+                  style={{ background: userFilter === s.filter ? s.bg : "#FFF", border: "1px solid " + (userFilter === s.filter ? s.border : "#E5E7EB"), borderRadius: "14px", padding: "16px 20px", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: "12px" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = s.border; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = userFilter === s.filter ? s.border : "#E5E7EB"; e.currentTarget.style.transform = "none"; }}>
+                  <span style={{ fontSize: "24px" }}>{s.icon}</span>
+                  <div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, color: s.color }}>{s.count}</div>
+                    <div style={{ fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Filter label */}
+            {userFilter !== "all" && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                <span style={{ fontSize: "12px", color: "#64748B" }}>Filtered by: <strong>{userFilter}</strong></span>
+                <button onClick={() => setUserFilter("all")} style={{ fontSize: "11px", color: "#DC2626", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕ Clear</button>
+              </div>
+            )}
+
+            {/* TM Cards grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "12px" }}>
+              {filteredList.map(p => {
+                const linked = getLinkedCompanies(p.id);
+                const badge = getTrialBadge(p);
+                const tmVehicles = linked.flatMap(c => getCompanyVehicles(c.id));
+                const tmDefects = linked.flatMap(c => getCompanyDefects(c.id)).filter(d => d.status === "open");
+                const accStatus = p.account_status || "active";
+                const borderColor = accStatus === "demo" ? "#3B82F6" : accStatus === "inactive" ? "#9CA3AF" : p.subscription_status === "expired" ? "#EF4444" : p.subscription_status === "trial" ? "#F59E0B" : "#10B981";
+                return (
+                  <div key={p.id} onClick={() => setSelectedTM(p)}
+                    style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", borderLeft: "4px solid " + borderColor, padding: "18px 20px", cursor: "pointer", transition: "all 0.15s", position: "relative" }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+
+                    {/* Subscription badge top right */}
+                    <span style={{ position: "absolute", top: "14px", right: "14px", padding: "3px 8px", borderRadius: "10px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700 }}>{badge.label}</span>
+
+                    {/* Avatar + name */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px", paddingRight: "80px" }}>
+                      <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "15px", flexShrink: 0 }}>{initials(p.full_name)}</div>
+                      <div>
+                        <div style={{ fontSize: "15px", fontWeight: 800, color: "#0F172A" }}>{p.full_name || "No name"}</div>
+                        <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{p.email}</div>
+                      </div>
+                    </div>
+
+                    {/* Joined + plan */}
+                    <div style={{ display: "flex", gap: "6px", marginBottom: "14px", flexWrap: "wrap" }}>
+                      <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#EFF6FF", color: "#2563EB", fontSize: "11px", fontWeight: 600 }}>💰 £49/mo</span>
+                      <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#F8FAFC", color: "#64748B", fontSize: "11px", fontWeight: 600 }}>📅 {formatDate(p.created_at)}</span>
+                      {accStatus !== "active" && (
+                        <span style={{ padding: "3px 10px", borderRadius: "20px", background: accStatus === "demo" ? "#EFF6FF" : "#F3F4F6", color: accStatus === "demo" ? "#2563EB" : "#6B7280", fontSize: "11px", fontWeight: 700 }}>{accStatus.toUpperCase()}</span>
+                      )}
+                    </div>
+
+                    {/* Companies */}
+                    <div style={{ marginBottom: "14px" }}>
+                      {linked.length > 0
+                        ? <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                            {linked.slice(0, 3).map(c => (
+                              <span key={c.id} style={{ padding: "3px 8px", borderRadius: "20px", background: "#F1F5F9", color: "#475569", fontSize: "10px", fontWeight: 600 }}>🏢 {c.name}</span>
+                            ))}
+                            {linked.length > 3 && <span style={{ padding: "3px 8px", borderRadius: "20px", background: "#F1F5F9", color: "#94A3B8", fontSize: "10px", fontWeight: 600 }}>+{linked.length - 3} more</span>}
+                          </div>
+                        : <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#FEF9C3", color: "#CA8A04", fontSize: "11px", fontWeight: 600 }}>⚠ No companies linked</span>
+                      }
+                    </div>
+
+                    {/* Stats row */}
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: "18px", fontWeight: 800, color: "#059669" }}>{linked.length}<span style={{ fontSize: "11px", color: "#94A3B8" }}>/6</span></div>
+                        <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>COMPANIES</div>
+                      </div>
+                      <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: "18px", fontWeight: 800, color: "#2563EB" }}>{tmVehicles.length}</div>
+                        <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>VEHICLES</div>
+                      </div>
+                      <div style={{ flex: 1, background: tmDefects.length > 0 ? "#FEF2F2" : "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
+                        <div style={{ fontSize: "18px", fontWeight: 800, color: tmDefects.length > 0 ? "#DC2626" : "#10B981" }}>{tmDefects.length}</div>
+                        <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>DEFECTS</div>
+                      </div>
+                    </div>
+
+                    {/* Quick actions */}
+                    <div style={{ display: "flex", gap: "6px", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #F1F5F9" }} onClick={e => e.stopPropagation()}>
+                      {p.subscription_status === "trial" && (
+                        <button onClick={() => activateUser(p.id)} style={{ padding: "5px 12px", borderRadius: "8px", border: "none", background: "#059669", color: "white", fontSize: "10px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✅ Activate</button>
+                      )}
+                      {p.subscription_status === "expired" && (
+                        <button onClick={() => activateUser(p.id)} style={{ padding: "5px 12px", borderRadius: "8px", border: "none", background: "#059669", color: "white", fontSize: "10px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>↩ Reactivate</button>
+                      )}
+                      {p.subscription_status === "active" && (
+                        <button onClick={() => expireUser(p.id)} style={{ padding: "5px 12px", borderRadius: "8px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "10px", fontWeight: 700, color: "#DC2626", cursor: "pointer", fontFamily: "inherit" }}>⏸ Expire</button>
+                      )}
+                      <button onClick={() => setShowLinkCompany(p.id)} style={{ padding: "5px 12px", borderRadius: "8px", border: "1px solid #BFDBFE", background: "#EFF6FF", fontSize: "10px", fontWeight: 700, color: "#2563EB", cursor: "pointer", fontFamily: "inherit" }}>+ Link Co.</button>
+                      <button onClick={() => deleteUser(p.id, p.email)} style={{ padding: "5px 10px", borderRadius: "8px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "11px", fontWeight: 700, color: "#DC2626", cursor: "pointer", marginLeft: "auto" }}>🗑</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {filteredList.length === 0 && (
+              <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8" }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>🚛</div>
+                <p style={{ fontWeight: 600 }}>No TMs match this filter</p>
+              </div>
+            )}
+          </>);
+        })()}
 
         {/* ===== COMPANIES TAB ===== */}
         {tab === "companies" && !selectedCompany && (() => {
