@@ -94,26 +94,18 @@ async function downloadCheckPDFReal(ch, items) {
   doc.save(filename);
 }
 
-// ── Photo lightbox ──────────────────────────────────────────────────────
 function PhotoLightbox({ src, onClose }) {
   if (!src) return null;
   return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
       <div onClick={e => e.stopPropagation()} style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh" }}>
         <img src={src} alt="Check photo" style={{ maxWidth: "100%", maxHeight: "85vh", borderRadius: "12px", objectFit: "contain", display: "block" }} />
-        <button
-          onClick={onClose}
-          style={{ position: "absolute", top: "-14px", right: "-14px", width: "32px", height: "32px", borderRadius: "50%", background: "#DC2626", border: "2px solid white", color: "white", fontSize: "16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
-          ✕
-        </button>
+        <button onClick={onClose} style={{ position: "absolute", top: "-14px", right: "-14px", width: "32px", height: "32px", borderRadius: "50%", background: "#DC2626", border: "2px solid white", color: "white", fontSize: "16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✕</button>
       </div>
     </div>
   );
 }
 
-// ── Check detail modal ──────────────────────────────────────────────────
 function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
@@ -129,8 +121,6 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
 
   const failedItems = items.filter(i => i.status === "fail");
   const passedItems = items.filter(i => i.status === "pass");
-
-  // Collect all photos: item photos + general check photos
   const allPhotos = [
     ...items.filter(i => i.photo_url).map(i => ({ url: i.photo_url, label: i.item_label, severity: i.defect_severity })),
     ...(check.photo_urls || []).map(url => ({ url, label: "General", severity: null })),
@@ -139,39 +129,21 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
   return (
     <>
       <PhotoLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      <div
-        onClick={onClose}
-        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0" }}>
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{ background: "#FFF", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: "680px", maxHeight: "92vh", overflow: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,0.2)" }}>
-
-          {/* Handle bar */}
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: "680px", maxHeight: "92vh", overflow: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,0.2)" }}>
           <div style={{ width: "40px", height: "4px", borderRadius: "2px", background: "#E5E7EB", margin: "12px auto 0" }} />
-
-          {/* Header */}
           <div style={{ padding: "16px 24px 14px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span style={{ fontSize: "22px", fontWeight: 900, fontFamily: "monospace", color: "#0F172A" }}>{check.vehicle_reg}</span>
-                <span style={{
-                  padding: "3px 10px", borderRadius: "20px", fontSize: "10px", fontWeight: 800,
-                  background: check.result === "pass" ? "#ECFDF5" : "#FEF2F2",
-                  border: `1px solid ${check.result === "pass" ? "#A7F3D0" : "#FECACA"}`,
-                  color: check.result === "pass" ? "#059669" : "#DC2626",
-                }}>
+                <span style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", fontWeight: 800, background: check.result === "pass" ? "#ECFDF5" : "#FEF2F2", border: `1px solid ${check.result === "pass" ? "#A7F3D0" : "#FECACA"}`, color: check.result === "pass" ? "#059669" : "#DC2626" }}>
                   {check.result === "pass" ? "✅ PASS" : "⚠️ FAIL"}
                 </span>
               </div>
-              <div style={{ fontSize: "12px", color: "#64748B", marginTop: "3px" }}>
-                {check.driver_name} · {formatDate(check.completed_at)} {formatTime(check.completed_at)}
-              </div>
+              <div style={{ fontSize: "12px", color: "#64748B", marginTop: "3px" }}>{check.driver_name} · {formatDate(check.completed_at)} {formatTime(check.completed_at)}</div>
             </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                onClick={() => onDownloadPDF(check, items)}
-                disabled={downloading}
-                style={{ padding: "8px 14px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "11px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>
+              <button onClick={() => onDownloadPDF(check, items)} disabled={downloading} style={{ padding: "8px 14px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "11px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>
                 {downloading ? "⏳" : "📄 PDF"}
               </button>
               <button onClick={onClose} style={{ width: "32px", height: "32px", borderRadius: "8px", border: "1px solid #E5E7EB", background: "#F8FAFC", cursor: "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
@@ -179,7 +151,6 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
           </div>
 
           <div style={{ padding: "20px 24px" }}>
-            {/* Stats row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "20px" }}>
               {[
                 { label: "Total Items", value: check.total_items || 0, color: "#0F172A" },
@@ -194,32 +165,16 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
               ))}
             </div>
 
-            {/* Photos section — shown if any photos exist */}
             {allPhotos.length > 0 && (
               <div style={{ marginBottom: "20px" }}>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  📷 Photos ({allPhotos.length})
-                </div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", marginBottom: "12px" }}>📷 Photos ({allPhotos.length})</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "8px" }}>
                   {allPhotos.map((p, i) => (
-                    <div
-                      key={i}
-                      onClick={() => setLightboxSrc(p.url)}
-                      style={{ position: "relative", cursor: "pointer", borderRadius: "12px", overflow: "hidden", aspectRatio: "1", border: "2px solid #E5E7EB" }}>
+                    <div key={i} onClick={() => setLightboxSrc(p.url)} style={{ position: "relative", cursor: "pointer", borderRadius: "12px", overflow: "hidden", aspectRatio: "1", border: "2px solid #E5E7EB" }}>
                       <img src={p.url} alt={p.label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.7))", padding: "6px 6px 5px" }}>
                         <div style={{ fontSize: "9px", fontWeight: 700, color: "white", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{p.label}</div>
-                        {p.severity && (
-                          <div style={{ fontSize: "8px", color: p.severity === "dangerous" ? "#FCA5A5" : p.severity === "major" ? "#FDBA74" : "#FDE68A", fontWeight: 700, textTransform: "uppercase" }}>
-                            {p.severity}
-                          </div>
-                        )}
-                      </div>
-                      {/* Zoom icon overlay */}
-                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.25)"}
-                        onMouseLeave={e => e.currentTarget.style.background = "rgba(0,0,0,0)"}>
-                        <span style={{ fontSize: "18px", opacity: 0 }} className="zoom-icon">🔍</span>
+                        {p.severity && <div style={{ fontSize: "8px", color: p.severity === "dangerous" ? "#FCA5A5" : p.severity === "major" ? "#FDBA74" : "#FDE68A", fontWeight: 700, textTransform: "uppercase" }}>{p.severity}</div>}
                       </div>
                     </div>
                   ))}
@@ -227,7 +182,6 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
               </div>
             )}
 
-            {/* Defects */}
             {failedItems.length > 0 && (
               <div style={{ marginBottom: "20px" }}>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#DC2626", marginBottom: "10px" }}>⚠️ Defects Reported</div>
@@ -237,28 +191,11 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: "13px", fontWeight: 700, color: "#111827" }}>{item.item_label}</div>
                         <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>{item.category}</div>
-                        {item.defect_description && (
-                          <div style={{ fontSize: "12px", color: "#374151", marginTop: "6px", fontStyle: "italic" }}>"{item.defect_description}"</div>
-                        )}
+                        {item.defect_description && <div style={{ fontSize: "12px", color: "#374151", marginTop: "6px", fontStyle: "italic" }}>"{item.defect_description}"</div>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                        {item.photo_url && (
-                          <img
-                            src={item.photo_url}
-                            alt={item.item_label}
-                            onClick={() => setLightboxSrc(item.photo_url)}
-                            style={{ width: "52px", height: "52px", objectFit: "cover", borderRadius: "8px", border: "2px solid #FECACA", cursor: "pointer" }}
-                          />
-                        )}
-                        {item.defect_severity && (
-                          <span style={{
-                            padding: "3px 8px", borderRadius: "8px", fontSize: "9px", fontWeight: 800,
-                            background: item.defect_severity === "dangerous" ? "#DC2626" : item.defect_severity === "major" ? "#F97316" : "#F59E0B",
-                            color: "white",
-                          }}>
-                            {item.defect_severity.toUpperCase()}
-                          </span>
-                        )}
+                        {item.photo_url && <img src={item.photo_url} alt={item.item_label} onClick={() => setLightboxSrc(item.photo_url)} style={{ width: "52px", height: "52px", objectFit: "cover", borderRadius: "8px", border: "2px solid #FECACA", cursor: "pointer" }} />}
+                        {item.defect_severity && <span style={{ padding: "3px 8px", borderRadius: "8px", fontSize: "9px", fontWeight: 800, background: item.defect_severity === "dangerous" ? "#DC2626" : item.defect_severity === "major" ? "#F97316" : "#F59E0B", color: "white" }}>{item.defect_severity.toUpperCase()}</span>}
                       </div>
                     </div>
                   </div>
@@ -266,7 +203,6 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
               </div>
             )}
 
-            {/* Passed items (collapsed) */}
             {!loadingItems && passedItems.length > 0 && (
               <details style={{ marginBottom: "10px" }}>
                 <summary style={{ fontSize: "13px", fontWeight: 700, color: "#059669", cursor: "pointer", padding: "10px 0", userSelect: "none", listStyle: "none", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -274,14 +210,11 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
                 </summary>
                 <div style={{ marginTop: "8px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
                   {passedItems.map(item => (
-                    <span key={item.id} style={{ padding: "4px 10px", borderRadius: "20px", background: "#ECFDF5", border: "1px solid #A7F3D0", fontSize: "11px", color: "#059669", fontWeight: 600 }}>
-                      {item.item_label}
-                    </span>
+                    <span key={item.id} style={{ padding: "4px 10px", borderRadius: "20px", background: "#ECFDF5", border: "1px solid #A7F3D0", fontSize: "11px", color: "#059669", fontWeight: 600 }}>{item.item_label}</span>
                   ))}
                 </div>
               </details>
             )}
-
             {loadingItems && <div style={{ textAlign: "center", padding: "20px", color: "#94A3B8", fontSize: "13px" }}>Loading check details...</div>}
           </div>
         </div>
@@ -290,7 +223,6 @@ function CheckDetailModal({ check, onClose, onDownloadPDF, downloading }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════════════════════
 export default function ChecksPage() {
   const [checks, setChecks] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -301,6 +233,9 @@ export default function ChecksPage() {
   const [profile, setProfile] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
   const [selectedCheck, setSelectedCheck] = useState(null);
+
+  // ✅ detect company admin
+  const isCompanyAdmin = profile?.role === "company_admin" || profile?.role === "company_viewer";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -321,14 +256,22 @@ export default function ChecksPage() {
     setLoading(true);
     if (isSupabaseReady()) {
       let companyIds = null;
-      if (userProfile && userProfile.role === "tm") {
+
+      if (userProfile?.role === "tm") {
         const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
         companyIds = (links || []).map(l => l.company_id);
+      } else if (userProfile?.role === "company_admin" || userProfile?.role === "company_viewer") {
+        // ✅ Company admin: only their company
+        const { data: comp } = await supabase.from("companies").select("id").eq("user_id", userProfile.id).single();
+        companyIds = comp ? [comp.id] : [];
       }
+
+      const ids = companyIds?.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"];
       let chQuery = supabase.from("walkaround_checks").select("*").order("completed_at", { ascending: false }).limit(500);
-      if (companyIds) chQuery = chQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      if (companyIds) chQuery = chQuery.in("company_id", ids);
       let coQuery = supabase.from("companies").select("id, name").is("archived_at", null).order("name");
-      if (companyIds) coQuery = coQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      if (companyIds) coQuery = coQuery.in("id", ids);
+
       const [chRes, coRes] = await Promise.all([chQuery, coQuery]);
       setChecks(chRes.data || []); setCompanies(coRes.data || []);
     }
@@ -378,24 +321,21 @@ export default function ChecksPage() {
         .check-row { transition: background 0.12s; }
         .check-row:hover { background: #F8FAFC !important; cursor: pointer; }
         .pdf-btn:hover { background: #F1F5F9 !important; border-color: #CBD5E1 !important; }
-        .photo-thumb:hover { transform: scale(1.05); }
         details summary::-webkit-details-marker { display: none; }
       `}</style>
 
-      {/* Check detail modal */}
-      <CheckDetailModal
-        check={selectedCheck}
-        onClose={() => setSelectedCheck(null)}
-        onDownloadPDF={handleDownloadPDF}
-        downloading={!!downloadingId}
-      />
+      <CheckDetailModal check={selectedCheck} onClose={() => setSelectedCheck(null)} onDownloadPDF={handleDownloadPDF} downloading={!!downloadingId} />
 
       <header style={{ background: "linear-gradient(135deg, #0F172A, #1E293B)", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🚛</div>
           <span style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Comply<span style={{ color: "#60A5FA" }}>Fleet</span></span>
         </a>
-        <a href="/dashboard" style={{ color: "#94A3B8", fontSize: "12px", fontWeight: 600, textDecoration: "none" }}>← Dashboard</a>
+        {/* ✅ Styled back button (matches other pages) */}
+        <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", color: "white", fontSize: "12px", fontWeight: 700, textDecoration: "none" }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>
+          ← Back to Dashboard
+        </a>
       </header>
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px 20px" }}>
@@ -406,27 +346,14 @@ export default function ChecksPage() {
           </div>
           <ExportDropdown
             onCSV={() => exportChecksCSV(filtered, `checks-${filterRange}.csv`)}
-            onPDF={() => printReport("Walkaround Checks", `${filtered.length} checks`,
-              ["Ref", "Vehicle", "Driver", "Result", "Items", "Defects", "Photos", "Date"],
-              filtered.map(ch => [ch.reference_id, ch.vehicle_reg, ch.driver_name, ch.result === "pass" ? "✅ PASS" : "⚠️ FAIL", `${ch.passed_items||0}/${ch.total_items||0}`, ch.defects_reported||0, (ch.photo_urls||[]).length, formatDate(ch.completed_at)]),
-              (row) => row[3].includes("FAIL") ? "danger" : "")}
+            onPDF={() => printReport("Walkaround Checks", `${filtered.length} checks`, ["Ref", "Vehicle", "Driver", "Result", "Items", "Defects", "Photos", "Date"], filtered.map(ch => [ch.reference_id, ch.vehicle_reg, ch.driver_name, ch.result === "pass" ? "✅ PASS" : "⚠️ FAIL", `${ch.passed_items||0}/${ch.total_items||0}`, ch.defects_reported||0, (ch.photo_urls||[]).length, formatDate(ch.completed_at)]), (row) => row[3].includes("FAIL") ? "danger" : "")}
           />
         </div>
 
-        {/* Stat cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px" }}>
           {statCards.map(s => (
-            <div
-              key={s.label}
-              className="stat-card"
-              onClick={s.onClick || undefined}
-              style={{
-                background: s.active ? s.color + "08" : "#FFF",
-                borderRadius: "14px", padding: "16px 20px",
-                border: s.active ? `2px solid ${s.color}` : "1px solid #E5E7EB",
-                display: "flex", alignItems: "center", gap: "14px",
-                cursor: s.onClick ? "pointer" : "default",
-              }}>
+            <div key={s.label} className="stat-card" onClick={s.onClick || undefined}
+              style={{ background: s.active ? s.color + "08" : "#FFF", borderRadius: "14px", padding: "16px 20px", border: s.active ? `2px solid ${s.color}` : "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: "14px", cursor: s.onClick ? "pointer" : "default" }}>
               <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: s.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>{s.icon}</div>
               <div>
                 <div style={{ fontSize: "24px", fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
@@ -437,20 +364,22 @@ export default function ChecksPage() {
           ))}
         </div>
 
-        {/* Filters */}
         <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
-          <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} style={{ padding: "8px 14px", borderRadius: "10px", border: "1px solid #E5E7EB", fontSize: "12px", fontWeight: 600, background: "#FFF", fontFamily: "inherit", cursor: "pointer" }}>
-            <option value="all">All Companies</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          {/* ✅ Only show company filter for TMs */}
+          {!isCompanyAdmin && (
+            <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} style={{ padding: "8px 14px", borderRadius: "10px", border: "1px solid #E5E7EB", fontSize: "12px", fontWeight: 600, background: "#FFF", fontFamily: "inherit", cursor: "pointer" }}>
+              <option value="all">All Companies</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
           {["7d", "30d", "90d", "all"].map(r => (
-            <button key={r} onClick={() => setFilterRange(r)} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer", background: filterRange === r ? "#0F172A" : "#FFF", color: filterRange === r ? "white" : "#64748B", fontSize: "12px", fontWeight: 700, transition: "all 0.15s" }}>
+            <button key={r} onClick={() => setFilterRange(r)} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer", background: filterRange === r ? "#0F172A" : "#FFF", color: filterRange === r ? "white" : "#64748B", fontSize: "12px", fontWeight: 700 }}>
               {r === "all" ? "All Time" : `Last ${r}`}
             </button>
           ))}
           <span style={{ borderLeft: "1px solid #E5E7EB", margin: "0 4px" }} />
           {[{ key: "all", label: "All Results" }, { key: "pass", label: "✅ Passed" }, { key: "fail", label: "⚠️ Defects" }].map(r => (
-            <button key={r.key} onClick={() => setFilterResult(r.key)} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer", background: filterResult === r.key ? "#0F172A" : "#FFF", color: filterResult === r.key ? "white" : "#64748B", fontSize: "12px", fontWeight: 700, transition: "all 0.15s" }}>
+            <button key={r.key} onClick={() => setFilterResult(r.key)} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer", background: filterResult === r.key ? "#0F172A" : "#FFF", color: filterResult === r.key ? "white" : "#64748B", fontSize: "12px", fontWeight: 700 }}>
               {r.label}
             </button>
           ))}
@@ -477,13 +406,9 @@ export default function ChecksPage() {
                 </thead>
                 <tbody>
                   {filtered.map(ch => {
-                    const photoCount = (ch.photo_urls || []).length;
+                    const pCount = (ch.photo_urls || []).length;
                     return (
-                      <tr
-                        key={ch.id}
-                        className="check-row"
-                        style={{ borderBottom: "1px solid #F3F4F6" }}
-                        onClick={() => setSelectedCheck(ch)}>
+                      <tr key={ch.id} className="check-row" style={{ borderBottom: "1px solid #F3F4F6" }} onClick={() => setSelectedCheck(ch)}>
                         <td style={{ padding: "14px", fontFamily: "monospace", fontSize: "12px", fontWeight: 600, color: "#374151" }}>{ch.reference_id}</td>
                         <td style={{ padding: "14px" }}>
                           <div style={{ fontWeight: 700, fontSize: "14px", fontFamily: "monospace", color: "#0F172A" }}>{ch.vehicle_reg}</div>
@@ -501,36 +426,23 @@ export default function ChecksPage() {
                             ? <span style={{ padding: "2px 8px", borderRadius: "10px", background: "#FEF2F2", fontSize: "11px", fontWeight: 700, color: "#DC2626" }}>{ch.defects_reported}</span>
                             : <span style={{ color: "#94A3B8", fontSize: "12px" }}>0</span>}
                         </td>
-                        {/* Photo thumbnails */}
                         <td style={{ padding: "14px" }}>
-                          {photoCount > 0 ? (
+                          {pCount > 0 ? (
                             <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
                               {(ch.photo_urls || []).slice(0, 2).map((url, i) => (
-                                <img
-                                  key={i}
-                                  src={url}
-                                  alt="photo"
-                                  className="photo-thumb"
-                                  onClick={e => { e.stopPropagation(); setSelectedCheck(ch); }}
-                                  style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "6px", border: "1px solid #E5E7EB", cursor: "pointer", transition: "transform 0.15s" }}
-                                />
+                                <img key={i} src={url} alt="photo" onClick={e => { e.stopPropagation(); setSelectedCheck(ch); }} style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "6px", border: "1px solid #E5E7EB", cursor: "pointer" }} />
                               ))}
-                              {photoCount > 2 && <span style={{ fontSize: "10px", color: "#94A3B8", fontWeight: 700 }}>+{photoCount - 2}</span>}
+                              {pCount > 2 && <span style={{ fontSize: "10px", color: "#94A3B8", fontWeight: 700 }}>+{pCount - 2}</span>}
                             </div>
-                          ) : (
-                            <span style={{ color: "#E5E7EB", fontSize: "12px" }}>—</span>
-                          )}
+                          ) : <span style={{ color: "#E5E7EB", fontSize: "12px" }}>—</span>}
                         </td>
                         <td style={{ padding: "14px" }}>
                           <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151" }}>{formatDate(ch.completed_at)}</div>
                           <div style={{ fontSize: "10px", color: "#94A3B8" }}>{formatTime(ch.completed_at)}</div>
                         </td>
                         <td style={{ padding: "14px" }}>
-                          <button
-                            className="pdf-btn"
-                            onClick={e => { e.stopPropagation(); handleDownloadPDF(ch, null); }}
-                            disabled={downloadingId === ch.id}
-                            style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "10px", fontWeight: 700, color: "#374151", cursor: downloadingId === ch.id ? "wait" : "pointer", whiteSpace: "nowrap", transition: "all 0.15s", opacity: downloadingId === ch.id ? 0.6 : 1 }}>
+                          <button className="pdf-btn" onClick={e => { e.stopPropagation(); handleDownloadPDF(ch, null); }} disabled={downloadingId === ch.id}
+                            style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "10px", fontWeight: 700, color: "#374151", cursor: downloadingId === ch.id ? "wait" : "pointer", whiteSpace: "nowrap", opacity: downloadingId === ch.id ? 0.6 : 1 }}>
                             {downloadingId === ch.id ? "⏳" : "📄 PDF"}
                           </button>
                         </td>
