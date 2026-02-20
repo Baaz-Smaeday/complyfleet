@@ -302,7 +302,7 @@ export default function ComplyFleetDashboard() {
         if (!session) { window.location.href = "/login"; return; }
         supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
          if (data) {
-  if (data.subscription_status === "inactive" || data.subscription_status === "expired") {
+ if (data.account_status === "inactive") {
     window.location.href = "/suspended?reason=" + data.subscription_status;
     return;
   }
