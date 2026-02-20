@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import BackButton from '../../components/BackButton';
+import BackButton from '../../../components/BackButton';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
