@@ -58,63 +58,55 @@ function StatCard({ icon, value, label, color = '#1e293b', danger }) {
 }
 
 export default function DriverHoursPage() {
-  const [rows, setRows]               = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [filter, setFilter]           = useState('All');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('All');
   const [driverFilter, setDriverFilter] = useState('All Drivers');
 
-  // ── Fetch from Supabase ──────────────────────────────────────────────────
   useEffect(() => {
     const fetchHours = async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('driver_hours')
-        .select('*, drivers(name, company_id)')
+        .select('*, drivers(name)')
         .order('shift_date', { ascending: false });
 
       if (error) {
         console.error('Error fetching driver hours:', error);
       } else {
-        // Flatten driver name into each row
         const mapped = (data || []).map(row => ({
           ...row,
-          driver:  row.drivers?.name || 'Unknown',
-          company: row.company_id,   // swap for company name if you join companies table
+          driver: row.drivers?.name || 'Unknown',
         }));
         setRows(mapped);
       }
       setLoading(false);
     };
-
     fetchHours();
   }, []);
 
-  // ── Derived stats ────────────────────────────────────────────────────────
-  const drivers        = ['All Drivers', ...new Set(rows.map(r => r.driver))];
+  const drivers = ['All Drivers', ...new Set(rows.map(r => r.driver))];
   const totalViolations = rows.filter(r => r.violations?.length > 0).length;
-  const compliant       = rows.filter(r => !r.violations?.length).length;
+  const compliant = rows.filter(r => !r.violations?.length).length;
   const uniqueViolators = new Set(rows.filter(r => r.violations?.length > 0).map(r => r.driver)).size;
-  const hasViolations   = rows.some(r => r.violations?.length > 0);
+  const hasViolations = rows.some(r => r.violations?.length > 0);
 
-  // ── Filter ───────────────────────────────────────────────────────────────
   const filtered = rows.filter(row => {
     const matchDriver = driverFilter === 'All Drivers' || row.driver === driverFilter;
     const matchFilter =
-      filter === 'All'        ? true :
+      filter === 'All' ? true :
       filter === 'Violations' ? row.violations?.length > 0 :
-                                !row.violations?.length;
+      !row.violations?.length;
     return matchDriver && matchFilter;
   });
 
-  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#f8fafc', minHeight: '100vh', padding: 32 }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0f172a', margin: 0 }}>
             ⏱️ Driver Hours
           </h1>
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>
@@ -129,15 +121,13 @@ export default function DriverHoursPage() {
         </button>
       </div>
 
-      {/* Stats */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <StatCard icon="👥" value={new Set(rows.map(r => r.driver)).size} label="Total Drivers" />
         <StatCard icon="🚨" value={totalViolations} label="Shifts with Violations" danger={totalViolations > 0} color="#dc2626" />
-        <StatCard icon="⚠️" value={uniqueViolators}  label="Drivers in Breach"     danger={uniqueViolators > 0} color="#d97706" />
-        <StatCard icon="✅" value={compliant}         label="Compliant Shifts"      color="#16a34a" />
+        <StatCard icon="⚠️" value={uniqueViolators} label="Drivers in Breach" danger={uniqueViolators > 0} color="#d97706" />
+        <StatCard icon="✅" value={compliant} label="Compliant Shifts" color="#16a34a" />
       </div>
 
-      {/* Alert banner */}
       {hasViolations && (
         <div style={{
           background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
@@ -153,7 +143,6 @@ export default function DriverHoursPage() {
         </div>
       )}
 
-      {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <select
           value={driverFilter}
@@ -173,7 +162,6 @@ export default function DriverHoursPage() {
               fontSize: 14, fontWeight: 500, cursor: 'pointer',
               background: filter === f ? '#0f172a' : '#fff',
               color: filter === f ? '#fff' : '#64748b',
-              transition: 'all 0.15s'
             }}>
               {f === 'All' ? '📋 All' : f === 'Violations' ? '🚨 Violations' : '✅ Compliant'}
             </button>
@@ -181,14 +169,12 @@ export default function DriverHoursPage() {
         </div>
       </div>
 
-      {/* Loading */}
       {loading && (
         <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 15 }}>
           Loading driver hours...
         </div>
       )}
 
-      {/* Rows */}
       {!loading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.map(row => {
@@ -214,7 +200,6 @@ export default function DriverHoursPage() {
                       <div style={{ fontSize: 13, color: '#64748b' }}>{row.shift_date}</div>
                     </div>
                   </div>
-
                   <span style={{
                     padding: '4px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                     background: isBreached ? '#fef2f2' : '#f0fdf4',
@@ -225,7 +210,6 @@ export default function DriverHoursPage() {
                   </span>
                 </div>
 
-                {/* Hours breakdown */}
                 <div style={{ display: 'flex', gap: 24, margin: '14px 0 12px', flexWrap: 'wrap' }}>
                   {[
                     { label: 'Driving', val: fmtMins(row.driving_minutes), warn: row.driving_minutes > 540 },
@@ -239,14 +223,12 @@ export default function DriverHoursPage() {
                   ))}
                 </div>
 
-                {/* Violation badges */}
                 {row.violations?.length > 0 && (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                     {row.violations.map(v => <ViolationBadge key={v} code={v} />)}
                   </div>
                 )}
 
-                {/* Notes */}
                 {row.notes && (
                   <div style={{ fontSize: 13, color: '#64748b', borderTop: '1px solid #f1f5f9', paddingTop: 10 }}>
                     📝 {row.notes}
