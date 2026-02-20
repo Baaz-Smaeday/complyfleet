@@ -432,6 +432,7 @@ export default function ComplyFleetDashboard() {
               { href: "/qr-codes",            icon: "📱", label: "QR Codes",            desc: "Generate vehicle QR codes",          glowColor: "124,58,237" },
               { href: "/tacho",               icon: "🗂️", label: "Tacho Compliance",   desc: "Driver & vehicle download tracking", glowColor: "124,58,237" },
       { href: "/dashboard/driver-hours", icon: "⏱️", label: "Driver Hours", desc: "Hours violations & DVSA limits", glowColor: "220,38,38" },
+      { href: "/dashboard/tacho-upload", icon: "📁", label: "Tacho Upload", desc: "Upload .ddd files from card reader", glowColor: "124,58,237" },
             ].map(l => <QuickLink key={l.href} {...l} />)}
           </div>
         </>)}
