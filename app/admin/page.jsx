@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 /* ===== V5.1 ADMIN — FIXED: No role dropdown, clickable stat cards ===== */
-const VERSION = "v5.11";
+const VERSION = "v5.12";
 const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 function daysLeft(d) { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); }
 
@@ -47,7 +47,8 @@ export default function SuperAdmin() {
   const [showCreateCompany, setShowCreateCompany] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", password: "" });
-  const [companyForm, setCompanyForm] = useState({ name: "", operator_licence: "", contact_email: "", contact_phone: "" });
+  // ✅ CHANGE 1: Added login_email and login_password to companyForm
+  const [companyForm, setCompanyForm] = useState({ name: "", operator_licence: "", contact_email: "", contact_phone: "", login_email: "", login_password: "" });
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteMsg, setInviteMsg] = useState("");
   const [toast, setToast] = useState(null);
@@ -101,15 +102,49 @@ export default function SuperAdmin() {
     setTimeout(() => loadData(), 1500);
   }
 
+  // ✅ CHANGE 2: createCompany now auto-creates login account if email+password provided
   async function createCompany() {
     setInviteLoading(true); setInviteMsg("");
-    const { data: newCo, error } = await supabase.from("companies").insert({ ...companyForm, licence_status: "Valid" }).select().single();
+    // Insert company without the login fields (they're not DB columns)
+    const { login_email, login_password, ...companyData } = companyForm;
+    const { data: newCo, error } = await supabase.from("companies").insert({ ...companyData, licence_status: "Valid" }).select().single();
     if (error) { setInviteMsg("Error: " + error.message); setInviteLoading(false); return; }
+
+    // Auto-create login account if email + password provided
+    if (newCo && login_email && login_password) {
+      const trialEnd = new Date(Date.now() + 7 * 86400000).toISOString();
+      const { data: authData, error: authErr } = await supabase.auth.signUp({
+        email: login_email,
+        password: login_password,
+        options: { data: { full_name: companyData.name, role: "company_admin" } }
+      });
+      if (authErr) {
+        setInviteMsg("Company created but login failed: " + authErr.message);
+        setInviteLoading(false);
+        loadData();
+        return;
+      }
+      if (authData?.user) {
+        // Update profile with company_admin role + trial
+        await supabase.from("profiles").update({
+          role: "company_admin",
+          subscription_status: "trial",
+          trial_ends_at: trialEnd
+        }).eq("id", authData.user.id);
+        // Link user_id to company record
+        await supabase.from("companies").update({ user_id: authData.user.id }).eq("id", newCo.id);
+      }
+    }
+
     if (newCo && linkToTM) {
       await supabase.from("tm_companies").insert({ tm_id: linkToTM, company_id: newCo.id });
     }
-    flash("Company created" + (linkToTM ? " & linked to TM" : ""));
-    setShowCreateCompany(false); setCompanyForm({ name: "", operator_licence: "", contact_email: "", contact_phone: "" }); setLinkToTM(""); setInviteLoading(false);
+
+    const loginCreated = login_email && login_password;
+    flash("Company created" + (loginCreated ? " with login account" : "") + (linkToTM ? " & linked to TM" : ""));
+    setShowCreateCompany(false);
+    setCompanyForm({ name: "", operator_licence: "", contact_email: "", contact_phone: "", login_email: "", login_password: "" });
+    setLinkToTM(""); setInviteLoading(false);
     loadData();
   }
 
@@ -122,7 +157,6 @@ export default function SuperAdmin() {
   async function setCompanyStatus(cid, status) {
     await supabase.from("companies").update({ status }).eq("id", cid);
     flash("Company → " + status);
-    // Update selectedCompany immediately so buttons reflect new state without waiting for loadData
     setSelectedCompany(prev => prev && prev.id === cid ? { ...prev, status } : prev);
     loadData();
   }
@@ -130,17 +164,14 @@ export default function SuperAdmin() {
     e.preventDefault();
     const { email, full_name, password, can_manage_tms, can_manage_companies, can_view_revenue, can_delete } = staffForm;
     if (!email || !full_name) { flash("Please fill name and email", "error"); return; }
-    // Check if user already exists in profiles
     const { data: existing } = await supabase.from("profiles").select("id, role").eq("email", email).single();
     if (existing) {
-      // User exists — just update their role and permissions
       await supabase.from("profiles").update({
         full_name, role: "staff",
         can_manage_tms, can_manage_companies, can_view_revenue, can_delete
       }).eq("id", existing.id);
       flash("Existing user promoted to Staff!");
     } else {
-      // New user — create auth account
       if (!password) { flash("Password required for new users", "error"); return; }
       const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password, options: { data: { full_name } } });
       if (authErr) { flash("Error: " + authErr.message, "error"); return; }
@@ -168,7 +199,6 @@ export default function SuperAdmin() {
   async function setTMStatus(tid, status) {
     await supabase.from("profiles").update({ account_status: status }).eq("id", tid);
     flash("TM → " + status);
-    // Update selectedTM immediately so buttons reflect new state
     setSelectedTM(prev => prev && prev.id === tid ? { ...prev, account_status: status } : prev);
     loadData();
   }
@@ -196,7 +226,6 @@ export default function SuperAdmin() {
 
   function initials(name) { return name ? name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) : "??"; }
 
-  // ✅ Reusable clickable stat card
   function StatCard({ icon, value, label, accent, onClick, tooltip }) {
     const [hovered, setHovered] = useState(false);
     return (
@@ -408,7 +437,7 @@ export default function SuperAdmin() {
           </div>
         </>)}
 
-        {/* ===== COMPANY DETAIL (overview tab only — companies tab has its own below) ===== */}
+        {/* ===== COMPANY DETAIL (overview tab only) ===== */}
         {tab === "overview" && selectedCompany && !selectedTM && (() => {
           const c = selectedCompany;
           const cv = getCompanyVehicles(c.id);
@@ -424,7 +453,6 @@ export default function SuperAdmin() {
               {linkedTMNames.length > 0 ? <span style={{ color: "#2563EB", fontWeight: 600 }}>TM: {linkedTMNames.map(t => t.full_name).join(", ")}</span> : <span style={{ color: "#DC2626", fontWeight: 600 }}>⚠ No TM assigned</span>}
             </p>
 
-            {/* ✅ FIXED: Company detail stat cards are clickable */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
               <StatCard icon="🚛" value={cv.length} label="Vehicles" accent="#059669" onClick={() => { window.location.href = "/vehicles"; }} tooltip="Click to view vehicles" />
               <StatCard icon="⚠️" value={openD.length} label="Open Defects" accent="#DC2626" onClick={() => { window.location.href = "/defects"; }} tooltip="Click to view defects" />
@@ -488,7 +516,6 @@ export default function SuperAdmin() {
               {(tm.subscription_status === "active" || tm.subscription_status === "trial") && <button onClick={() => expireUser(tm.id)} style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #FECACA", background: "#FEF2F2", fontSize: "11px", fontWeight: 700, color: "#DC2626", cursor: "pointer" }}>⏸ Expire</button>}
             </div>
 
-            {/* ✅ NEW: TM Account Status buttons — Active / Inactive / Demo */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "24px", padding: "14px 18px", background: "#F8FAFC", borderRadius: "12px", border: "1px solid #E5E7EB", alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginRight: "4px" }}>Account status:</span>
               {["active", "inactive", "demo"].map(s => {
@@ -506,7 +533,6 @@ export default function SuperAdmin() {
               </span>
             </div>
 
-            {/* ✅ FIXED: TM detail stat cards are now all clickable */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
               <StatCard icon="🏢" value={linked.length + "/6"} label="Companies" accent="#0F172A" onClick={() => setTab("companies")} tooltip="Click to view all companies" />
               <StatCard icon="🚛" value={tmVehicles.length + "/60"} label="Vehicles" accent="#059669" onClick={() => { window.location.href = "/vehicles"; }} tooltip="Click to view vehicles" />
@@ -537,7 +563,6 @@ export default function SuperAdmin() {
           </>);
         })()}
 
-        {/* ===== REVENUE ===== */}
         {/* ===== STAFF TAB ===== */}
         {tab === "staff" && (<>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
@@ -551,14 +576,12 @@ export default function SuperAdmin() {
             </button>
           </div>
 
-          {/* Permission explanation */}
           <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px" }}>
             <p style={{ fontSize: "13px", color: "#5B21B6", fontWeight: 600, margin: 0 }}>
               🔐 Staff members see a restricted admin view. You control exactly what each person can access.
             </p>
           </div>
 
-          {/* Staff list — empty state for now */}
           <div style={{ background: "#FFF", borderRadius: "16px", border: "2px dashed #E5E7EB", padding: "60px 24px", textAlign: "center" }}>
             <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
             <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", marginBottom: "8px" }}>No staff members yet</h2>
@@ -585,7 +608,6 @@ export default function SuperAdmin() {
         </>)}
 
         {tab === "revenue" && (<>
-          {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
             <div>
               <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>💰 Revenue & Billing</h1>
@@ -593,7 +615,6 @@ export default function SuperAdmin() {
             </div>
           </div>
 
-          {/* 4 KPI cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
             {[
               { icon: "💰", label: "Monthly Revenue", value: "£" + mrrNow, sub: "from paying TMs", color: "#059669", bg: "#ECFDF5", border: "#A7F3D0", onClick: () => {} },
@@ -614,7 +635,6 @@ export default function SuperAdmin() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
-            {/* TM billing cards */}
             <div style={{ background: "#FFF", borderRadius: "16px", padding: "24px", border: "1px solid #E5E7EB" }}>
               <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "16px" }}>💳 TM Billing Status</h2>
               {tms.map(tm => {
@@ -699,7 +719,6 @@ export default function SuperAdmin() {
           const expiredTMList = tms.filter(p => p.subscription_status === "expired");
           const filteredList = userFilter === "active" ? activeTMList : userFilter === "trial" ? trialTMList : userFilter === "expired" ? expiredTMList : tms;
           return (<>
-            {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <div>
                 <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>🚛 Transport Managers</h1>
@@ -711,7 +730,6 @@ export default function SuperAdmin() {
               </div>
             </div>
 
-            {/* Stats bar */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
               {[
                 { label: "Active", count: activeTMList.length, color: "#059669", bg: "#ECFDF5", border: "#A7F3D0", icon: "✅", filter: "active" },
@@ -731,7 +749,6 @@ export default function SuperAdmin() {
               ))}
             </div>
 
-            {/* Filter label */}
             {userFilter !== "all" && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
                 <span style={{ fontSize: "12px", color: "#64748B" }}>Filtered by: <strong>{userFilter}</strong></span>
@@ -739,7 +756,6 @@ export default function SuperAdmin() {
               </div>
             )}
 
-            {/* TM Cards grid */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "12px" }}>
               {filteredList.map(p => {
                 const linked = getLinkedCompanies(p.id);
@@ -753,11 +769,7 @@ export default function SuperAdmin() {
                     color={p.subscription_status === "expired" ? "239,68,68" : p.subscription_status === "trial" ? "245,158,11" : "16,185,129"}
                     style={{ marginBottom: "0" }}>
                     <div style={{ borderLeft: "4px solid " + borderColor, padding: "18px 20px", position: "relative" }}>
-
-                    {/* Subscription badge top right */}
                     <span style={{ position: "absolute", top: "14px", right: "14px", padding: "3px 8px", borderRadius: "10px", background: badge.bg, border: "1px solid " + badge.border, color: badge.color, fontSize: "9px", fontWeight: 700 }}>{badge.label}</span>
-
-                    {/* Avatar + name */}
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px", paddingRight: "80px" }}>
                       <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "linear-gradient(135deg, #2563EB, #7C3AED)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "15px", flexShrink: 0 }}>{initials(p.full_name)}</div>
                       <div>
@@ -765,8 +777,6 @@ export default function SuperAdmin() {
                         <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{p.email}</div>
                       </div>
                     </div>
-
-                    {/* Joined + plan */}
                     <div style={{ display: "flex", gap: "6px", marginBottom: "14px", flexWrap: "wrap" }}>
                       <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#EFF6FF", color: "#2563EB", fontSize: "11px", fontWeight: 600 }}>💰 £49/mo</span>
                       <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#F8FAFC", color: "#64748B", fontSize: "11px", fontWeight: 600 }}>📅 {formatDate(p.created_at)}</span>
@@ -774,8 +784,6 @@ export default function SuperAdmin() {
                         <span style={{ padding: "3px 10px", borderRadius: "20px", background: accStatus === "demo" ? "#EFF6FF" : "#F3F4F6", color: accStatus === "demo" ? "#2563EB" : "#6B7280", fontSize: "11px", fontWeight: 700 }}>{accStatus.toUpperCase()}</span>
                       )}
                     </div>
-
-                    {/* Companies */}
                     <div style={{ marginBottom: "14px" }}>
                       {linked.length > 0
                         ? <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
@@ -787,8 +795,6 @@ export default function SuperAdmin() {
                         : <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#FEF9C3", color: "#CA8A04", fontSize: "11px", fontWeight: 600 }}>⚠ No companies linked</span>
                       }
                     </div>
-
-                    {/* Stats row */}
                     <div style={{ display: "flex", gap: "8px" }}>
                       <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
                         <div style={{ fontSize: "18px", fontWeight: 800, color: "#059669" }}>{linked.length}<span style={{ fontSize: "11px", color: "#94A3B8" }}>/6</span></div>
@@ -803,8 +809,6 @@ export default function SuperAdmin() {
                         <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 600 }}>DEFECTS</div>
                       </div>
                     </div>
-
-                    {/* Quick actions */}
                     <div style={{ display: "flex", gap: "6px", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #F1F5F9" }} onClick={e => e.stopPropagation()}>
                       {p.subscription_status === "trial" && (
                         <button onClick={() => activateUser(p.id)} style={{ padding: "5px 12px", borderRadius: "8px", border: "none", background: "#059669", color: "white", fontSize: "10px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✅ Activate</button>
@@ -844,7 +848,6 @@ export default function SuperAdmin() {
             : companyFilter === "inactive" ? inactiveC
             : noTM;
           return (<>
-            {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <div>
                 <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>🏢 Companies</h1>
@@ -853,7 +856,6 @@ export default function SuperAdmin() {
               <button onClick={() => setShowCreateCompany(true)} style={{ padding: "10px 18px", border: "none", borderRadius: "10px", background: "#0F172A", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Create Company</button>
             </div>
 
-            {/* Stats bar */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
               {[
                 { label: "Active", count: activeC.length, color: "#059669", bg: "#ECFDF5", border: "#A7F3D0", icon: "✅", filter: "active" },
@@ -874,7 +876,6 @@ export default function SuperAdmin() {
               ))}
             </div>
 
-            {/* Filter label */}
             {companyFilter !== "all" && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
                 <span style={{ fontSize: "12px", color: "#64748B" }}>Filtered by: <strong>{companyFilter === "notm" ? "No TM assigned" : companyFilter}</strong></span>
@@ -882,7 +883,6 @@ export default function SuperAdmin() {
               </div>
             )}
 
-            {/* Company cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "12px" }}>
               {filteredCompanies.map(c => {
                 const v = getCompanyVehicles(c.id).length;
@@ -900,11 +900,7 @@ export default function SuperAdmin() {
                     color={cStatus === "demo" ? "37,99,235" : cStatus === "inactive" ? "107,114,128" : linkedTMs.length === 0 ? "239,68,68" : "16,185,129"}
                     style={{ marginBottom: "0" }}>
                     <div style={{ borderLeft: "4px solid " + borderColor, padding: "18px 20px", position: "relative" }}>
-
-                    {/* Status badge top right */}
                     <span style={{ position: "absolute", top: "14px", right: "14px", padding: "3px 8px", borderRadius: "10px", background: statusCfg.bg, color: statusCfg.color, fontSize: "9px", fontWeight: 700 }}>{statusCfg.label}</span>
-
-                    {/* Company name + licence */}
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "12px", paddingRight: "60px" }}>
                       <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>🏢</div>
                       <div>
@@ -912,8 +908,6 @@ export default function SuperAdmin() {
                         <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{c.operator_licence || "No operator licence"}</div>
                       </div>
                     </div>
-
-                    {/* TM assigned */}
                     <div style={{ marginBottom: "14px" }}>
                       {linkedTMs.length > 0
                         ? <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -924,8 +918,6 @@ export default function SuperAdmin() {
                         : <span style={{ padding: "3px 10px", borderRadius: "20px", background: "#FEF2F2", color: "#DC2626", fontSize: "11px", fontWeight: 600 }}>⚠ No TM assigned</span>
                       }
                     </div>
-
-                    {/* Stats row */}
                     <div style={{ display: "flex", gap: "8px" }}>
                       <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px 12px", textAlign: "center" }}>
                         <div style={{ fontSize: "18px", fontWeight: 800, color: "#059669" }}>{v}</div>
@@ -969,8 +961,6 @@ export default function SuperAdmin() {
           const cfg = statusCfg[cStatus] || statusCfg.active;
           return (<>
             <button onClick={() => setSelectedCompany(null)} style={{ background: "none", border: "none", fontSize: "13px", color: "#2563EB", fontWeight: 600, cursor: "pointer", marginBottom: "16px", fontFamily: "inherit" }}>← Back</button>
-
-            {/* Company header with status */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px", flexWrap: "wrap", gap: "12px" }}>
               <div>
                 <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>🏢 {c.name}</h1>
@@ -981,11 +971,9 @@ export default function SuperAdmin() {
                     : <span style={{ color: "#DC2626", fontWeight: 600 }}>⚠ No TM assigned</span>}
                 </p>
               </div>
-              {/* Status badge */}
               <span style={{ padding: "4px 14px", borderRadius: "20px", background: cfg.bg, border: "1px solid " + cfg.border, color: cfg.color, fontSize: "11px", fontWeight: 700 }}>{cfg.label}</span>
             </div>
 
-            {/* ✅ Active / Inactive / Demo buttons */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "24px", padding: "14px 18px", background: "#F8FAFC", borderRadius: "12px", border: "1px solid #E5E7EB", alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: "12px", fontWeight: 700, color: "#374151", marginRight: "4px" }}>Company status:</span>
               {["active", "inactive", "demo"].map(s => {
@@ -1003,7 +991,6 @@ export default function SuperAdmin() {
               </span>
             </div>
 
-            {/* Stat cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
               <StatCard icon="🚛" value={cv.length} label="Vehicles" accent="#059669" onClick={() => { window.location.href = "/vehicles"; }} tooltip="View vehicles" />
               <StatCard icon="⚠️" value={cd.filter(d => d.status === "open").length} label="Open Defects" accent="#DC2626" onClick={() => { window.location.href = "/defects"; }} tooltip="View defects" />
@@ -1040,7 +1027,6 @@ export default function SuperAdmin() {
         </>)}
       </main>
 
-      {/* === CREATE TM MODAL === */}
         {/* ===== USERS TAB ===== */}
         {tab === "users" && (() => {
           const allUsers = [...profiles].sort((a, b) => {
@@ -1053,6 +1039,7 @@ export default function SuperAdmin() {
             tm: { label: "TM", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
           };
           return (<>
+            <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "24px 20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <div>
                 <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0 }}>👤 All Users</h1>
@@ -1060,7 +1047,6 @@ export default function SuperAdmin() {
               </div>
             </div>
 
-            {/* Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
               {[
                 { label: "Platform Owner", count: profiles.filter(p => p.role === "platform_owner").length, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA", icon: "👑" },
@@ -1077,16 +1063,13 @@ export default function SuperAdmin() {
               ))}
             </div>
 
-            {/* User rows */}
             <div style={{ background: "#FFF", borderRadius: "16px", border: "1px solid #E5E7EB", overflow: "hidden" }}>
-              {/* Table header */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr auto", gap: "12px", padding: "12px 20px", background: "#F8FAFC", borderBottom: "1px solid #E5E7EB" }}>
                 {["User", "Email", "Role", "Status", "Joined", "Actions"].map(h => (
                   <div key={h} style={{ fontSize: "10px", fontWeight: 700, color: "#94A3B8", textTransform: "uppercase" }}>{h}</div>
                 ))}
               </div>
 
-              {/* User rows */}
               {allUsers.map((u, i) => {
                 const rCfg = roleConfig[u.role] || { label: u.role?.toUpperCase(), bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" };
                 const isActive = (u.account_status || "active") === "active";
@@ -1095,22 +1078,14 @@ export default function SuperAdmin() {
                   <div key={u.id} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr auto", gap: "12px", padding: "14px 20px", borderBottom: i < allUsers.length - 1 ? "1px solid #F1F5F9" : "none", alignItems: "center", background: isOwner ? "#FFFAF0" : "white", transition: "all 0.2s ease" }}
                     onMouseEnter={e => { if (!isOwner) { e.currentTarget.style.background = u.role === "staff" ? "#F5F3FF" : "#EFF6FF"; e.currentTarget.style.transform = "translateX(3px)"; e.currentTarget.style.boxShadow = u.role === "staff" ? "inset 3px 0 0 #7C3AED" : "inset 3px 0 0 #2563EB"; }}}
                     onMouseLeave={e => { if (!isOwner) { e.currentTarget.style.background = "white"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}}>
-
-                    {/* Name + avatar */}
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: isOwner ? "linear-gradient(135deg, #DC2626, #B91C1C)" : u.role === "staff" ? "linear-gradient(135deg, #7C3AED, #6D28D9)" : "linear-gradient(135deg, #2563EB, #1D4ED8)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "11px", flexShrink: 0 }}>
                         {(u.full_name || u.email || "?").slice(0, 2).toUpperCase()}
                       </div>
                       <div style={{ fontSize: "13px", fontWeight: 700, color: "#0F172A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.full_name || "—"}</div>
                     </div>
-
-                    {/* Email */}
                     <div style={{ fontSize: "12px", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.email}</div>
-
-                    {/* Role badge */}
                     <span style={{ padding: "3px 10px", borderRadius: "20px", background: rCfg.bg, border: "1px solid " + rCfg.border, color: rCfg.color, fontSize: "10px", fontWeight: 700, display: "inline-block" }}>{rCfg.label}</span>
-
-                    {/* Active/Inactive toggle */}
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <div onClick={() => !isOwner && toggleUserActive(u.id, isActive)}
                         style={{ width: "36px", height: "20px", borderRadius: "10px", background: isActive ? "#10B981" : "#D1D5DB", cursor: isOwner ? "default" : "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
@@ -1118,11 +1093,7 @@ export default function SuperAdmin() {
                       </div>
                       <span style={{ fontSize: "11px", color: isActive ? "#059669" : "#94A3B8", fontWeight: 600 }}>{isActive ? "Active" : "Off"}</span>
                     </div>
-
-                    {/* Joined */}
                     <div style={{ fontSize: "11px", color: "#94A3B8" }}>{formatDate(u.created_at)}</div>
-
-                    {/* Actions */}
                     <div style={{ display: "flex", gap: "4px" }} onClick={e => e.stopPropagation()}>
                       {!isOwner && (
                         <>
@@ -1136,6 +1107,7 @@ export default function SuperAdmin() {
                 );
               })}
             </div>
+            </div>
           </>);
         })()}
 
@@ -1147,7 +1119,6 @@ export default function SuperAdmin() {
               <h2 style={{ fontSize: "20px", fontWeight: 800, margin: 0 }}>👥 Add Staff Member</h2>
               <button onClick={() => setShowInviteStaff(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#94A3B8" }}>✕</button>
             </div>
-
             <div style={{ marginBottom: "16px" }}>
               <label style={labelStyle}>Full Name</label>
               <input style={inputStyle} placeholder="e.g. Sarah Jones" value={staffForm.full_name} onChange={e => setStaffForm(p => ({ ...p, full_name: e.target.value }))} />
@@ -1160,7 +1131,6 @@ export default function SuperAdmin() {
               <label style={labelStyle}>Temporary Password</label>
               <input style={inputStyle} type="password" placeholder="They can change this later" value={staffForm.password} onChange={e => setStaffForm(p => ({ ...p, password: e.target.value }))} />
             </div>
-
             <div style={{ marginBottom: "24px" }}>
               <label style={{ ...labelStyle, marginBottom: "12px" }}>🔐 Permissions</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -1182,7 +1152,6 @@ export default function SuperAdmin() {
                 ))}
               </div>
             </div>
-
             <button onClick={createStaff}
               style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "none", background: "#7C3AED", color: "white", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
               Create Staff Account
@@ -1222,7 +1191,7 @@ export default function SuperAdmin() {
       {/* === CREATE COMPANY MODAL === */}
       {showCreateCompany && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={() => setShowCreateCompany(false)}>
-          <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
               <h2 style={{ fontSize: "18px", fontWeight: 800, margin: 0 }}>🏢 Create Company</h2>
               <p style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>7-day free trial · £29/mo after · Unlimited vehicles</p>
@@ -1241,6 +1210,17 @@ export default function SuperAdmin() {
                   {tms.map(t => <option key={t.id} value={t.id}>{t.full_name || t.email}</option>)}
                 </select>
               </div>
+
+              {/* ✅ CHANGE 3: Company Login Account section */}
+              <div style={{ padding: "16px", borderRadius: "12px", background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#15803D", marginBottom: "12px" }}>🔑 Company Login Account <span style={{ fontSize: "11px", fontWeight: 500, color: "#4ADE80" }}>(optional)</span></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div><label style={{ ...labelStyle, color: "#15803D" }}>Login Email</label><input type="email" value={companyForm.login_email} onChange={e => setCompanyForm({...companyForm, login_email: e.target.value})} placeholder="company@example.com" style={{ ...inputStyle, borderColor: "#BBF7D0" }} /></div>
+                  <div><label style={{ ...labelStyle, color: "#15803D" }}>Password</label><input type="password" value={companyForm.login_password} onChange={e => setCompanyForm({...companyForm, login_password: e.target.value})} placeholder="min 6 characters" style={{ ...inputStyle, borderColor: "#BBF7D0" }} /></div>
+                </div>
+                <div style={{ fontSize: "11px", color: "#16A34A", marginTop: "10px" }}>Company logs in and sees the dashboard filtered to their fleet only</div>
+              </div>
+
               <div style={{ padding: "12px 16px", borderRadius: "10px", background: "#FFFBEB", border: "1px solid #FDE68A" }}>
                 <div style={{ fontSize: "12px", fontWeight: 700, color: "#92400E" }}>⏳ 7-Day Free Trial</div>
                 <div style={{ fontSize: "11px", color: "#B45309", marginTop: "2px" }}>Full access to all features. £29/mo after trial.</div>
@@ -1251,7 +1231,7 @@ export default function SuperAdmin() {
               <button onClick={() => { setShowCreateCompany(false); setInviteMsg(""); }} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
               <button onClick={createCompany} disabled={inviteLoading || !companyForm.name}
                 style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: companyForm.name ? "#0F172A" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-                {inviteLoading ? "Creating..." : "Create Company (7-day trial)"}
+                {inviteLoading ? "Creating..." : "Create Company"}
               </button>
             </div>
           </div>
