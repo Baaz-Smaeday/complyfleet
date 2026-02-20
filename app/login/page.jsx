@@ -19,7 +19,6 @@ export default function LoginPage() {
   }, []);
 
   async function redirectByRole(userId) {
-    // ✅ FIX: also fetch account_status to block inactive/expired accounts
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, account_status")
@@ -28,7 +27,6 @@ export default function LoginPage() {
 
     if (!profile) { window.location.href = "/dashboard"; return; }
 
-    // Block deactivated or expired accounts before they get anywhere
     if (profile.account_status === "inactive") {
       window.location.href = "/suspended?reason=" + profile.account_status;
       return;
@@ -38,7 +36,7 @@ export default function LoginPage() {
       case "platform_owner": window.location.href = "/admin"; break;
       case "tm": window.location.href = "/dashboard"; break;
       case "company_admin":
-      case "company_viewer": window.location.href = "/company-portal"; break;
+      case "company_viewer": window.location.href = "/company"; break; // ✅ FIXED: was /company-portal
       default: window.location.href = "/dashboard";
     }
   }
