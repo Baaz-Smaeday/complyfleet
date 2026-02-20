@@ -1,15 +1,8 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase, isSupabaseReady } from "../../lib/supabase";
 
 const TYPES = { HGV: "🚛", Van: "🚐", Trailer: "🔗" };
-
-const MOCK_VEHICLES = [
-  { id: "v1", reg: "BD63 XYZ", type: "HGV", make: "DAF", model: "CF 330", company_name: "Hargreaves Haulage Ltd", company_id: "c1" },
-  { id: "v2", reg: "KL19 ABC", type: "HGV", make: "DAF", model: "LF 230", company_name: "Hargreaves Haulage Ltd", company_id: "c1" },
-  { id: "v3", reg: "MN20 DEF", type: "Van", make: "Ford", model: "Transit 350", company_name: "Hargreaves Haulage Ltd", company_id: "c1" },
-  { id: "v5", reg: "AB12 CDE", type: "HGV", make: "Volvo", model: "FH 460", company_name: "Northern Express", company_id: "c2" },
-];
 
 function QRCard({ vehicle, baseUrl }) {
   const walkaroundUrl = `${baseUrl}/walkaround?vehicle=${vehicle.id}&company=${vehicle.company_id}`;
@@ -43,11 +36,7 @@ function QRCard({ vehicle, baseUrl }) {
   };
 
   return (
-    <div style={{
-      background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E5E7EB",
-      overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-      transition: "all 0.2s", cursor: "default",
-    }}
+    <div style={{ background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.2s" }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; }}>
       <div style={{ height: "3px", background: vehicle.type === "HGV" ? "#2563EB" : vehicle.type === "Van" ? "#10B981" : "#F59E0B" }} />
@@ -58,27 +47,12 @@ function QRCard({ vehicle, baseUrl }) {
           <div style={{ fontSize: "13px", color: "#6B7280", marginTop: "4px" }}>{TYPES[vehicle.type]} {vehicle.type} · {vehicle.make} {vehicle.model}</div>
           <div style={{ fontSize: "12px", color: "#94A3B8", marginTop: "2px" }}>{vehicle.company_name}</div>
         </div>
-
-        {/* Driver instruction badge — replaces the URL */}
-        <div style={{
-          marginTop: "14px", padding: "10px 14px", borderRadius: "10px",
-          background: "#F8FAFC", border: "1px solid #E2E8F0",
-          fontSize: "11px", fontWeight: 600, color: "#475569",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-        }}>
+        <div style={{ marginTop: "14px", padding: "10px 14px", borderRadius: "10px", background: "#F8FAFC", border: "1px solid #E2E8F0", fontSize: "11px", fontWeight: 600, color: "#475569", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
           📱 Scan with phone camera · No app needed
         </div>
-
         <div style={{ display: "flex", gap: "8px", marginTop: "12px", justifyContent: "center" }}>
-          <button onClick={handlePrint} style={{
-            padding: "10px 20px", borderRadius: "10px", border: "none",
-            background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white",
-            fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px",
-          }}>🖨️ Print QR</button>
-          <button onClick={() => { navigator.clipboard.writeText(walkaroundUrl); }} style={{
-            padding: "10px 20px", borderRadius: "10px", border: "1px solid #E5E7EB",
-            background: "#FFFFFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer",
-          }}>📋 Copy Link</button>
+          <button onClick={handlePrint} style={{ padding: "10px 20px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>🖨️ Print QR</button>
+          <button onClick={() => navigator.clipboard.writeText(walkaroundUrl)} style={{ padding: "10px 20px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFFFFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>📋 Copy Link</button>
         </div>
       </div>
     </div>
@@ -92,6 +66,10 @@ export default function ComplyFleetQRCodes() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [baseUrl, setBaseUrl] = useState("https://complyfleet.vercel.app");
+  const [profile, setProfile] = useState(null);
+
+  // ✅ detect company admin
+  const isCompanyAdmin = profile?.role === "company_admin" || profile?.role === "company_viewer";
 
   useEffect(() => {
     if (typeof window !== "undefined") setBaseUrl(window.location.origin);
@@ -99,7 +77,7 @@ export default function ComplyFleetQRCodes() {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) { window.location.href = "/login"; return; }
         supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
-          loadData(data);
+          if (data) { setProfile(data); loadData(data); }
         });
       });
     } else { loadData(null); }
@@ -109,14 +87,22 @@ export default function ComplyFleetQRCodes() {
     setLoading(true);
     if (isSupabaseReady()) {
       let companyIds = null;
-      if (userProfile && userProfile.role === "tm") {
+
+      if (userProfile?.role === "tm") {
         const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
         companyIds = (links || []).map(l => l.company_id);
+      } else if (userProfile?.role === "company_admin" || userProfile?.role === "company_viewer") {
+        // ✅ Company admin: only their company
+        const { data: comp } = await supabase.from("companies").select("id").eq("user_id", userProfile.id).single();
+        companyIds = comp ? [comp.id] : [];
       }
+
+      const ids = companyIds?.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"];
       let cQuery = supabase.from("companies").select("id, name").is("archived_at", null).order("name");
-      if (companyIds) cQuery = cQuery.in("id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      if (companyIds) cQuery = cQuery.in("id", ids);
       let vQuery = supabase.from("vehicles").select("*").is("archived_at", null).order("reg");
-      if (companyIds) vQuery = vQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      if (companyIds) vQuery = vQuery.in("company_id", ids);
+
       const [{ data: cos }, { data: vehs }] = await Promise.all([cQuery, vQuery]);
       setCompanies(cos || []);
       if (vehs && cos) {
@@ -124,9 +110,6 @@ export default function ComplyFleetQRCodes() {
         cos.forEach(c => { cMap[c.id] = c.name; });
         setVehicles(vehs.map(v => ({ ...v, company_name: cMap[v.company_id] || "" })));
       }
-    } else {
-      setCompanies([{ id: "c1", name: "Hargreaves Haulage Ltd" }, { id: "c2", name: "Northern Express" }]);
-      setVehicles(MOCK_VEHICLES);
     }
     setLoading(false);
   }
@@ -171,10 +154,11 @@ export default function ComplyFleetQRCodes() {
           <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🚛</div>
           <span style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Comply<span style={{ color: "#60A5FA" }}>Fleet</span></span>
         </a>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {!isSupabaseReady() && <span style={{ padding: "4px 10px", borderRadius: "6px", background: "rgba(251,191,36,0.2)", color: "#FCD34D", fontSize: "10px", fontWeight: 700 }}>DEMO MODE</span>}
-          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "13px" }}>JH</div>
-        </div>
+        {/* ✅ Back button */}
+        <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", color: "white", fontSize: "12px", fontWeight: 700, textDecoration: "none" }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>
+          ← Back to Dashboard
+        </a>
       </header>
 
       <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "24px 20px" }}>
@@ -183,7 +167,9 @@ export default function ComplyFleetQRCodes() {
             <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>📱 QR Codes</h1>
             <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Print and stick in each vehicle cab. Drivers scan to start their daily check.</p>
           </div>
-          <button onClick={handlePrintAll} style={{ padding: "10px 20px", border: "none", borderRadius: "12px", background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>🖨️ Print All ({filtered.length})</button>
+          <button onClick={handlePrintAll} style={{ padding: "10px 20px", border: "none", borderRadius: "12px", background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            🖨️ Print All ({filtered.length})
+          </button>
         </div>
 
         <div style={{ padding: "16px 20px", borderRadius: "14px", background: "#EFF6FF", border: "1px solid #BFDBFE", marginBottom: "20px", display: "flex", gap: "12px", alignItems: "center" }}>
@@ -194,10 +180,13 @@ export default function ComplyFleetQRCodes() {
         </div>
 
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "20px" }}>
-          <select value={selectedCompany} onChange={e => setSelectedCompany(e.target.value)} style={{ padding: "8px 12px", borderRadius: "10px", border: "1px solid #E5E7EB", fontSize: "12px", fontWeight: 600, background: "#FFF", fontFamily: "inherit" }}>
-            <option value="all">All Companies</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          {/* ✅ Only show company filter for TMs */}
+          {!isCompanyAdmin && (
+            <select value={selectedCompany} onChange={e => setSelectedCompany(e.target.value)} style={{ padding: "8px 12px", borderRadius: "10px", border: "1px solid #E5E7EB", fontSize: "12px", fontWeight: 600, background: "#FFF", fontFamily: "inherit" }}>
+              <option value="all">All Companies</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
           {["all", "HGV", "Van", "Trailer"].map(t => (
             <button key={t} onClick={() => setTypeFilter(t)} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer", background: typeFilter === t ? "#0F172A" : "#F1F5F9", color: typeFilter === t ? "white" : "#64748B", fontSize: "12px", fontWeight: 700 }}>
               {t === "all" ? "All Types" : `${TYPES[t]} ${t}`}
@@ -205,14 +194,15 @@ export default function ComplyFleetQRCodes() {
           ))}
         </div>
 
-        {loading
-          ? <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8" }}>Loading vehicles...</div>
-          : filtered.length === 0
-            ? <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8" }}>No vehicles found. Add some in the Company page first.</div>
-            : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-                {filtered.map(v => <QRCard key={v.id} vehicle={v} baseUrl={baseUrl} />)}
-              </div>
-        }
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8" }}>Loading vehicles...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px", color: "#94A3B8" }}>No vehicles found. Add vehicles first from the dashboard.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+            {filtered.map(v => <QRCard key={v.id} vehicle={v} baseUrl={baseUrl} />)}
+          </div>
+        )}
       </main>
 
       <footer style={{ textAlign: "center", padding: "24px 20px", marginTop: "40px", borderTop: "1px solid #E2E8F0", color: "#94A3B8", fontSize: "11px" }}>
