@@ -462,13 +462,17 @@ export default function ComplyFleetDashboard() {
           {/* ✅ Quick links — TM gets all, company admin gets filtered set */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginTop: "28px" }}>
             {isCompanyAdmin ? (
-              // Company admin quick links — no admin/TM tools
-              <>
-                <QuickLink href="/vehicles"            icon="🚛" label="Vehicle Compliance"  desc="MOT, PMI, insurance dates"          glowColor="15,23,42"   />
-                <QuickLink href="/defects?status=open" icon="⚠️" label="Defect Management"   desc="Track and resolve defects"          glowColor="220,38,38"  />
-                <QuickLink href="/checks"              icon="📋" label="Walkaround Checks"   desc="View all checks for your fleet"     glowColor="5,150,105"  />
-                <QuickLink href="/qr-codes"            icon="📱" label="QR Codes"            desc="Generate vehicle QR codes"          glowColor="124,58,237" />
-              </>
+              ) : (
+  // Company admin quick links
+  <>
+    <QuickLink href="/vehicles"                icon="🚛" label="Vehicle Compliance"  desc="MOT, PMI, insurance dates"            glowColor="15,23,42"   />
+    <QuickLink href="/defects?status=open"     icon="⚠️" label="Defect Management"   desc="Track and resolve defects"            glowColor="220,38,38"  />
+    <QuickLink href="/checks"                  icon="📋" label="Walkaround Checks"   desc="View all checks for your fleet"       glowColor="5,150,105"  />
+    <QuickLink href="/qr-codes"                icon="📱" label="QR Codes"            desc="Generate vehicle QR codes"            glowColor="124,58,237" />
+    <QuickLink href="/tacho"                   icon="🗂️" label="Tacho Compliance"   desc="Driver & vehicle download tracking"   glowColor="124,58,237" />
+    <QuickLink href="/dashboard/driver-hours"  icon="⏱️" label="Driver Hours"        desc="Hours violations & DVSA limits"       glowColor="220,38,38"  />
+    <QuickLink href="/dashboard/tacho-upload"  icon="📁" label="Tacho Upload"        desc="Upload .ddd files from card reader"   glowColor="124,58,237" />
+  </>
             ) : (
               // TM gets all quick links
               <>
