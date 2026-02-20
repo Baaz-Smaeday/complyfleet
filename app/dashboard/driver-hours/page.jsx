@@ -275,6 +275,7 @@ export default function DriverHoursPage() {
       `}</style>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
+      <BackButton href="/dashboard" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', margin: 0 }}>⏱️ Driver Hours</h1>
