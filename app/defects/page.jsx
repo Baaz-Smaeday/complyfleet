@@ -5,7 +5,7 @@ import { exportDefectsCSV, printReport } from "../../lib/utils";
 import ExportDropdown from "../../components/ExportDropdown";
 import { ConfirmDialog, Toast } from "../../components/ConfirmDialog";
 
-const TODAY = new Date("2026-02-16");
+const TODAY = new Date();
 function getDaysAgo(d) { return Math.floor((TODAY - new Date(d)) / 86400000); }
 function formatDate(d) { return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
 
@@ -15,17 +15,17 @@ const SEVERITY = {
   minor: { label: "MINOR", bg: "#FFFBEB", border: "#FDE68A", text: "#92400E", dot: "#F59E0B" },
 };
 const STATUS = {
-  open: { label: "OPEN", bg: "#FEE2E2", border: "#FCA5A5", text: "#991B1B", dot: "#EF4444", icon: "\u{1F534}" },
-  in_progress: { label: "IN PROGRESS", bg: "#DBEAFE", border: "#93C5FD", text: "#1E40AF", dot: "#3B82F6", icon: "\u{1F527}" },
-  resolved: { label: "RESOLVED", bg: "#D1FAE5", border: "#6EE7B7", text: "#065F46", dot: "#10B981", icon: "\u2705" },
-  closed: { label: "CLOSED", bg: "#F3F4F6", border: "#D1D5DB", text: "#6B7280", dot: "#9CA3AF", icon: "\u{1F512}" },
+  open: { label: "OPEN", bg: "#FEE2E2", border: "#FCA5A5", text: "#991B1B", dot: "#EF4444", icon: "🔴" },
+  in_progress: { label: "IN PROGRESS", bg: "#DBEAFE", border: "#93C5FD", text: "#1E40AF", dot: "#3B82F6", icon: "🔧" },
+  resolved: { label: "RESOLVED", bg: "#D1FAE5", border: "#6EE7B7", text: "#065F46", dot: "#10B981", icon: "✅" },
+  closed: { label: "CLOSED", bg: "#F3F4F6", border: "#D1D5DB", text: "#6B7280", dot: "#9CA3AF", icon: "🔒" },
 };
-const TYPES = { HGV: "\u{1F69B}", Van: "\u{1F690}", Trailer: "\u{1F517}" };
+const TYPES = { HGV: "🚛", Van: "🚐", Trailer: "🔗" };
 
 function printSingleDefect(d) {
   const sev = SEVERITY[d.severity]; const stat = STATUS[d.status];
   const win = window.open("", "_blank");
-  const infoRow = (label, value) => '<div class="info-item"><div class="info-label">' + label + '</div><div class="info-value">' + (value || "\u2014") + '</div></div>';
+  const infoRow = (label, value) => '<div class="info-item"><div class="info-label">' + label + '</div><div class="info-value">' + (value || "—") + '</div></div>';
   const noteHtml = (d.notes && d.notes.length > 0) ? '<h3 style="font-size:14px;margin:16px 0 10px">Timeline (' + d.notes.length + ')</h3>' +
     d.notes.map(n => '<div class="note"><div style="display:flex;justify-content:space-between"><span class="note-author">' + n.author + '</span><span class="note-date">' + formatDate(n.created_at) + '</span></div><div class="note-text">' + n.text + '</div></div>').join("") : "";
   win.document.write('<!DOCTYPE html><html><head><title>Defect - ' + d.vehicle_reg + '</title><style>' +
@@ -44,7 +44,7 @@ function printSingleDefect(d) {
     ".footer { margin-top: 24px; text-align: center; font-size: 9px; color: #94A3B8; border-top: 1px solid #E5E7EB; padding-top: 10px; }" +
     "@media print { body { padding: 15px; } @page { margin: 1cm; } }" +
     '</style></head><body>' +
-    '<div class="header"><div><div class="logo">\u{1F69B} Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Defect Record</div></div>' +
+    '<div class="header"><div><div class="logo">🚛 Comply<span>Fleet</span></div><div style="font-size:12px;color:#6B7280">Defect Record</div></div>' +
     '<div style="text-align:right"><div style="font-size:22px;font-weight:800;font-family:monospace">' + d.vehicle_reg + '</div><div style="font-size:12px;color:#6B7280">' + (d.vehicle_type || "") + '</div></div></div>' +
     '<div style="margin-bottom:16px"><span class="badge" style="background:' + stat.bg + ';color:' + stat.text + ';border:1px solid ' + stat.border + '">' + stat.label + '</span>' +
     '<span class="badge" style="background:' + sev.bg + ';color:' + sev.text + ';border:1px solid ' + sev.border + '">' + sev.label + '</span></div>' +
@@ -54,24 +54,9 @@ function printSingleDefect(d) {
     (d.resolved_date ? infoRow("Resolved", formatDate(d.resolved_date)) : "") + (d.resolved_by ? infoRow("Resolved By", d.resolved_by) : "") +
     (d.closed_date ? infoRow("Closed", formatDate(d.closed_date)) : "") + '</div>' +
     noteHtml +
-    '<div class="footer">ComplyFleet \u00B7 DVSA Compliance Platform \u00B7 complyfleet.vercel.app \u00B7 Record permanently stored</div></body></html>');
+    '<div class="footer">ComplyFleet · DVSA Compliance Platform · complyfleet.vercel.app · Record permanently stored</div></body></html>');
   win.document.close(); setTimeout(() => win.print(), 500);
 }
-
-const MOCK_DEFECTS = [
-  { id: "d1", vehicle_reg: "BD63 XYZ", vehicle_type: "HGV", company_name: "Hargreaves Haulage Ltd", category: "Brakes", description: "Nearside brake pad worn below limit", severity: "dangerous", status: "open", reported_by: "Mark Thompson", reported_date: "2026-02-15", assigned_to: null, notes: [] },
-  { id: "d2", vehicle_reg: "GH45 IJK", vehicle_type: "HGV", company_name: "Yorkshire Fleet Services", category: "MOT", description: "MOT expired \u2014 vehicle must not be used", severity: "dangerous", status: "in_progress", reported_by: "Steve Williams", reported_date: "2026-02-13", assigned_to: "Gary Firth", notes: [
-    { author: "James Henderson", text: "Vehicle off road. MOT booked 17 Feb.", created_at: "2026-02-13" },
-    { author: "Gary Firth", text: "Pre-MOT check done.", created_at: "2026-02-14" },
-  ]},
-  { id: "d3", vehicle_reg: "LM67 OPQ", vehicle_type: "HGV", company_name: "Yorkshire Fleet Services", category: "Lights", description: "Offside indicator intermittent", severity: "minor", status: "open", reported_by: "Steve Williams", reported_date: "2026-02-14", assigned_to: null, notes: [] },
-  { id: "d4", vehicle_reg: "KL19 ABC", vehicle_type: "HGV", company_name: "Hargreaves Haulage Ltd", category: "Tyres & Wheels", description: "Offside rear outer tyre \u2014 cut in sidewall 25mm", severity: "major", status: "resolved", reported_by: "Alan Davies", reported_date: "2026-02-10", assigned_to: "Dave Pearson", resolved_by: "James Henderson", resolved_date: "2026-02-11", notes: [
-    { author: "Dave Pearson", text: "Replacement tyre fitted.", created_at: "2026-02-11" },
-  ]},
-  { id: "d5", vehicle_reg: "FG34 HIJ", vehicle_type: "HGV", company_name: "Northern Express Transport", category: "Exhaust", description: "Exhaust blow from flexi joint", severity: "minor", status: "closed", reported_by: "Peter Clarke", reported_date: "2026-01-28", assigned_to: "Tom Bennett", resolved_by: "James Henderson", resolved_date: "2026-01-29", closed_date: "2026-01-30", notes: [
-    { author: "Tom Bennett", text: "Flexi joint replaced.", created_at: "2026-01-29" },
-  ]},
-];
 
 function Pill({ config }) {
   return (<span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "3px 10px", borderRadius: "20px", background: config.bg, border: `1px solid ${config.border}`, fontSize: "10px", fontWeight: 700, color: config.text, letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
@@ -79,15 +64,8 @@ function Pill({ config }) {
   </span>);
 }
 
-function StatCard({ icon, value, label, accent }) {
-  return (<div style={{ background: "#FFFFFF", borderRadius: "16px", padding: "20px 24px", border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", display: "flex", alignItems: "center", gap: "16px" }}>
-    <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>{icon}</div>
-    <div><div style={{ fontSize: "28px", fontWeight: 800, color: accent, lineHeight: 1 }}>{value}</div><div style={{ fontSize: "12px", color: "#6B7280", fontWeight: 500, marginTop: "4px" }}>{label}</div></div>
-  </div>);
-}
-
-function AddDefectModal({ onSave, onClose }) {
-  const [form, setForm] = useState({ vehicle_reg: "", vehicle_type: "HGV", company_name: "", category: "", description: "", severity: "minor", reported_by: "" });
+function AddDefectModal({ onSave, onClose, defaultCompanyName }) {
+  const [form, setForm] = useState({ vehicle_reg: "", vehicle_type: "HGV", company_name: defaultCompanyName || "", category: "", description: "", severity: "minor", reported_by: "" });
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm({ ...form, [k]: v });
   const cats = ["Lights", "Tyres & Wheels", "Brakes", "Mirrors & Glass", "Body & Security", "Fluid Levels", "Safety Equipment", "Exhaust & Emissions", "MOT", "Other"];
@@ -96,15 +74,15 @@ function AddDefectModal({ onSave, onClose }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={onClose}>
       <div style={{ background: "#FFFFFF", borderRadius: "20px", width: "100%", maxWidth: "520px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{"\u2795"} Report Defect</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94A3B8" }}>{"\u2715"}</button>
+          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>➕ Report Defect</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94A3B8" }}>✕</button>
         </div>
         <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div><label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>Vehicle Reg *</label>
               <input value={form.vehicle_reg} onChange={e => set("vehicle_reg", e.target.value)} placeholder="BD63 XYZ" style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", background: "#FAFAFA", fontFamily: "inherit" }} /></div>
             <div><label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>Company</label>
-              <input value={form.company_name} onChange={e => set("company_name", e.target.value)} placeholder="Hargreaves Haulage" style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", background: "#FAFAFA", fontFamily: "inherit" }} /></div>
+              <input value={form.company_name} onChange={e => set("company_name", e.target.value)} placeholder="Company name" style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", background: "#FAFAFA", fontFamily: "inherit" }} /></div>
           </div>
           <div><label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>Category *</label>
             <select value={form.category} onChange={e => set("category", e.target.value)} style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", background: "#FAFAFA", fontFamily: "inherit" }}>
@@ -125,11 +103,10 @@ function AddDefectModal({ onSave, onClose }) {
         </div>
         <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
           <button onClick={onClose} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFFFFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
-          <button onClick={async () => { setSaving(true); await onSave(form); setSaving(false); }} disabled={saving || !form.vehicle_reg || !form.description || !form.category} style={{
-            padding: "10px 24px", border: "none", borderRadius: "10px",
-            background: (!form.vehicle_reg || !form.description || !form.category) ? "#E5E7EB" : "linear-gradient(135deg, #DC2626, #EF4444)",
-            color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer",
-          }}>{saving ? "Saving..." : "\u26A0\uFE0F Report Defect"}</button>
+          <button onClick={async () => { setSaving(true); await onSave(form); setSaving(false); }} disabled={saving || !form.vehicle_reg || !form.description || !form.category}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: (!form.vehicle_reg || !form.description || !form.category) ? "#E5E7EB" : "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {saving ? "Saving..." : "⚠️ Report Defect"}
+          </button>
         </div>
       </div>
     </div>
@@ -143,17 +120,17 @@ function AddNoteModal({ defectId, onSave, onClose }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: "20px" }} onClick={onClose}>
       <div style={{ background: "#FFFFFF", borderRadius: "20px", width: "100%", maxWidth: "440px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{"\u{1F4DD}"} Add Note</h2>
+          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>📝 Add Note</h2>
         </div>
         <div style={{ padding: "24px 28px" }}>
           <textarea value={text} onChange={e => setText(e.target.value)} placeholder="What action was taken?" rows={4} style={{ width: "100%", padding: "12px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", background: "#FAFAFA", fontFamily: "inherit", resize: "vertical" }} />
         </div>
         <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
           <button onClick={onClose} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
-          <button onClick={async () => { setSaving(true); await onSave(defectId, text); setSaving(false); }} disabled={saving || !text.trim()} style={{
-            padding: "10px 24px", border: "none", borderRadius: "10px", background: text.trim() ? "#0F172A" : "#E5E7EB",
-            color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer",
-          }}>{saving ? "Saving..." : "Add Note"}</button>
+          <button onClick={async () => { setSaving(true); await onSave(defectId, text); setSaving(false); }} disabled={saving || !text.trim()}
+            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: text.trim() ? "#0F172A" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+            {saving ? "Saving..." : "Add Note"}
+          </button>
         </div>
       </div>
     </div>
@@ -172,6 +149,10 @@ export default function ComplyFleetDefects() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [myCompany, setMyCompany] = useState(null); // ✅ company_admin's company
+
+  // ✅ detect company admin
+  const isCompanyAdmin = profile?.role === "company_admin" || profile?.role === "company_viewer";
 
   const flash = (msg, type = "success") => { setToast({ message: msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -192,12 +173,21 @@ export default function ComplyFleetDefects() {
     setLoading(true);
     if (isSupabaseReady()) {
       let companyIds = null;
-      if (userProfile && userProfile.role === "tm") {
+
+      if (userProfile?.role === "tm") {
         const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
         companyIds = (links || []).map(l => l.company_id);
+      } else if (userProfile?.role === "company_admin" || userProfile?.role === "company_viewer") {
+        // ✅ Company admin: only their company
+        const { data: comp } = await supabase.from("companies").select("id, name").eq("user_id", userProfile.id).single();
+        if (comp) { companyIds = [comp.id]; setMyCompany(comp); }
+        else companyIds = [];
       }
+
+      const ids = companyIds?.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"];
       let dQuery = supabase.from("defects").select("*").order("reported_date", { ascending: false });
-      if (companyIds) dQuery = dQuery.in("company_id", companyIds.length > 0 ? companyIds : ["00000000-0000-0000-0000-000000000000"]);
+      if (companyIds) dQuery = dQuery.in("company_id", ids);
+
       const { data: defs } = await dQuery;
       if (defs) {
         for (let d of defs) {
@@ -206,46 +196,31 @@ export default function ComplyFleetDefects() {
         }
       }
       setDefects(defs || []);
-    } else {
-      setDefects(MOCK_DEFECTS);
     }
     setLoading(false);
   }
 
   async function addDefect(form) {
     const newDef = { ...form, status: "open", reported_date: new Date().toISOString().split("T")[0] };
-    if (isSupabaseReady()) {
-      await supabase.from("defects").insert(newDef);
-      await loadData(profile);
-    } else {
-      setDefects(prev => [{ ...newDef, id: "d" + Date.now(), notes: [] }, ...prev]);
-    }
+    await supabase.from("defects").insert(newDef);
+    await loadData(profile);
     flash("Defect reported"); setShowAdd(false);
   }
 
   async function changeStatus(id, newStatus) {
     const updates = { status: newStatus };
-    if (newStatus === "resolved") { updates.resolved_date = new Date().toISOString().split("T")[0]; updates.resolved_by = "James Henderson"; }
+    if (newStatus === "resolved") { updates.resolved_date = new Date().toISOString().split("T")[0]; updates.resolved_by = profile?.full_name || "User"; }
     if (newStatus === "closed") { updates.closed_date = new Date().toISOString().split("T")[0]; }
-
-    if (isSupabaseReady()) {
-      await supabase.from("defects").update(updates).eq("id", id);
-      await loadData(profile);
-    } else {
-      setDefects(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
-    }
+    await supabase.from("defects").update(updates).eq("id", id);
+    await loadData(profile);
     const labels = { in_progress: "Defect assigned", resolved: "Defect resolved", closed: "Defect closed" };
     flash(labels[newStatus] || "Status updated"); setConfirm(null); setSelected(null);
   }
 
   async function addNote(defectId, text) {
-    const note = { author: "James Henderson", text, created_at: new Date().toISOString().split("T")[0] };
-    if (isSupabaseReady()) {
-      await supabase.from("defect_notes").insert({ defect_id: defectId, ...note });
-      await loadData(profile);
-    } else {
-      setDefects(prev => prev.map(d => d.id === defectId ? { ...d, notes: [...(d.notes || []), note] } : d));
-    }
+    const note = { author: profile?.full_name || "User", text, created_at: new Date().toISOString().split("T")[0] };
+    await supabase.from("defect_notes").insert({ defect_id: defectId, ...note });
+    await loadData(profile);
     flash("Note added"); setShowNote(null);
   }
 
@@ -256,7 +231,13 @@ export default function ComplyFleetDefects() {
     return true;
   });
 
-  const counts = { all: defects.length, open: defects.filter(d => d.status === "open").length, in_progress: defects.filter(d => d.status === "in_progress").length, resolved: defects.filter(d => d.status === "resolved").length, closed: defects.filter(d => d.status === "closed").length };
+  const counts = {
+    all: defects.length,
+    open: defects.filter(d => d.status === "open").length,
+    in_progress: defects.filter(d => d.status === "in_progress").length,
+    resolved: defects.filter(d => d.status === "resolved").length,
+    closed: defects.filter(d => d.status === "closed").length,
+  };
   const dangerousOpen = defects.filter(d => d.severity === "dangerous" && (d.status === "open" || d.status === "in_progress")).length;
 
   return (
@@ -267,66 +248,90 @@ export default function ComplyFleetDefects() {
 
       <header style={{ background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>{"\u{1F69B}"}</div>
+          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🚛</div>
           <span style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Comply<span style={{ color: "#60A5FA" }}>Fleet</span></span>
         </a>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {!isSupabaseReady() && <span style={{ padding: "4px 10px", borderRadius: "6px", background: "rgba(251,191,36,0.2)", color: "#FCD34D", fontSize: "10px", fontWeight: 700 }}>DEMO MODE</span>}
-          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "13px" }}>JH</div>
-        </div>
+        {/* ✅ Back button */}
+        <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", color: "white", fontSize: "12px", fontWeight: 700, textDecoration: "none" }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>
+          ← Back to Dashboard
+        </a>
       </header>
 
       <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "24px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
-          <div><h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>{"\u26A0\uFE0F"} Defect Management</h1>
-            <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Track, assign and resolve defects. Defects cannot be deleted {"\u2014"} only closed.</p></div>
+          <div>
+            <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0F172A" }}>⚠️ Defect Management</h1>
+            <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Track, assign and resolve defects. Defects cannot be deleted — only closed.</p>
+          </div>
           <div style={{ display: "flex", gap: "8px" }}>
             <ExportDropdown
               onCSV={() => exportDefectsCSV(filtered, `defects-${filter !== "all" ? filter + "-" : ""}${new Date().toISOString().split("T")[0]}.csv`)}
-              onPDF={() => printReport("Defects Report", `${filtered.length} defects${filter !== "all" ? " (" + filter + ")" : ""}`, ["Vehicle", "Company", "Description", "Category", "Severity", "Status", "Reported"], filtered.map(d => [`<span class="mono">${d.vehicle_reg||""}</span>`, d.company_name || "", d.description || "", d.category || "", `<span class="${d.severity==="dangerous"?"red":d.severity==="major"?"amber":""}">${(d.severity||"").toUpperCase()}</span>`, (d.status||"").replace("_"," ").toUpperCase(), d.reported_date ? new Date(d.reported_date).toLocaleDateString("en-GB") : ""]), (row) => row[4]?.includes("red") ? "danger" : row[4]?.includes("amber") ? "warn" : "")}
+              onPDF={() => printReport("Defects Report", `${filtered.length} defects`, ["Vehicle", "Company", "Description", "Category", "Severity", "Status", "Reported"], filtered.map(d => [d.vehicle_reg || "", d.company_name || "", d.description || "", d.category || "", (d.severity || "").toUpperCase(), (d.status || "").replace("_", " ").toUpperCase(), d.reported_date ? new Date(d.reported_date).toLocaleDateString("en-GB") : ""]), () => "")}
             />
-            <button onClick={() => setShowAdd(true)} style={{ padding: "10px 20px", border: "none", borderRadius: "12px", background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>{"\u2795"} Report Defect</button>
+            <button onClick={() => setShowAdd(true)} style={{ padding: "10px 20px", border: "none", borderRadius: "12px", background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>➕ Report Defect</button>
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "24px" }}>
-          {[{ icon: "\u{1F534}", value: counts.open, label: "Open", accent: "#DC2626", f: "open" }, { icon: "\u{1F527}", value: counts.in_progress, label: "In Progress", accent: "#2563EB", f: "in_progress" }, { icon: "\u2705", value: counts.resolved, label: "Resolved", accent: "#059669", f: "resolved" }, { icon: "\u{1F512}", value: counts.closed, label: "Closed", accent: "#64748B", f: "closed" }].map(s => (
-            <div key={s.label} onClick={() => setFilter(filter === s.f ? "all" : s.f)} style={{ background: "#FFF", borderRadius: "16px", padding: "20px 24px", border: `2px solid ${filter === s.f ? s.accent : "#E5E7EB"}`, display: "flex", alignItems: "center", gap: "16px", cursor: "pointer", transition: "all 0.15s" }}
+          {[
+            { icon: "🔴", value: counts.open, label: "Open", accent: "#DC2626", f: "open" },
+            { icon: "🔧", value: counts.in_progress, label: "In Progress", accent: "#2563EB", f: "in_progress" },
+            { icon: "✅", value: counts.resolved, label: "Resolved", accent: "#059669", f: "resolved" },
+            { icon: "🔒", value: counts.closed, label: "Closed", accent: "#64748B", f: "closed" },
+          ].map(s => (
+            <div key={s.label} onClick={() => setFilter(filter === s.f ? "all" : s.f)}
+              style={{ background: "#FFF", borderRadius: "16px", padding: "20px 24px", border: `2px solid ${filter === s.f ? s.accent : "#E5E7EB"}`, display: "flex", alignItems: "center", gap: "16px", cursor: "pointer", transition: "all 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
               onMouseLeave={e => e.currentTarget.style.transform = ""}>
               <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: s.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>{s.icon}</div>
               <div><div style={{ fontSize: "28px", fontWeight: 800, color: s.accent, lineHeight: 1 }}>{s.value}</div><div style={{ fontSize: "12px", color: "#6B7280", fontWeight: 500, marginTop: "4px" }}>{s.label}</div></div>
-            </div>))}
+            </div>
+          ))}
         </div>
 
-        {dangerousOpen > 0 && (<div style={{ padding: "16px 20px", borderRadius: "16px", background: "#FEF2F2", border: "2px solid #FECACA", marginBottom: "20px", display: "flex", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontSize: "24px" }}>{"\u{1F6A8}"}</span>
-          <div><div style={{ fontSize: "14px", fontWeight: 800, color: "#991B1B" }}>{dangerousOpen} dangerous defect{dangerousOpen > 1 ? "s" : ""} require immediate action</div>
-            <div style={{ fontSize: "12px", color: "#DC2626", marginTop: "2px" }}>Vehicles must not be used on public roads</div></div>
-        </div>)}
+        {dangerousOpen > 0 && (
+          <div style={{ padding: "16px 20px", borderRadius: "16px", background: "#FEF2F2", border: "2px solid #FECACA", marginBottom: "20px", display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "24px" }}>🚨</span>
+            <div>
+              <div style={{ fontSize: "14px", fontWeight: 800, color: "#991B1B" }}>{dangerousOpen} dangerous defect{dangerousOpen > 1 ? "s" : ""} require immediate action</div>
+              <div style={{ fontSize: "12px", color: "#DC2626", marginTop: "2px" }}>Vehicles must not be used on public roads</div>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px", alignItems: "center" }}>
           {[{ key: "all", label: "All" }, { key: "open", label: "Open" }, { key: "in_progress", label: "In Progress" }, { key: "resolved", label: "Resolved" }, { key: "closed", label: "Closed" }].map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)} style={{ padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer", background: filter === f.key ? "#0F172A" : "#F1F5F9", color: filter === f.key ? "white" : "#64748B", fontSize: "12px", fontWeight: 700 }}>
-              {f.label} <span style={{ opacity: 0.6, marginLeft: "4px" }}>{counts[f.key]}</span></button>))}
+              {f.label} <span style={{ opacity: 0.6, marginLeft: "4px" }}>{counts[f.key]}</span>
+            </button>
+          ))}
           <div style={{ width: "1px", height: "24px", background: "#E5E7EB" }} />
           {["all", "dangerous", "major", "minor"].map(s => (
             <button key={s} onClick={() => setSevFilter(s)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid", borderColor: sevFilter === s ? (SEVERITY[s]?.dot || "#0F172A") : "#E5E7EB", background: sevFilter === s ? (SEVERITY[s]?.bg || "#0F172A") : "#FFF", color: sevFilter === s ? (SEVERITY[s]?.text || "white") : "#6B7280", fontSize: "11px", fontWeight: 700, cursor: "pointer", textTransform: "uppercase" }}>
-              {s === "all" ? "All Sev." : s}</button>))}
+              {s === "all" ? "All Sev." : s}
+            </button>
+          ))}
           <div style={{ flex: 1 }} />
           <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "14px" }}>{"\u{1F50D}"}</span>
+            <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "14px" }}>🔍</span>
             <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ padding: "8px 14px 8px 36px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "13px", width: "200px", outline: "none", background: "#FAFAFA", fontFamily: "inherit" }} />
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {loading ? <div style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>Loading...</div> :
-          filtered.length === 0 ? <div style={{ textAlign: "center", padding: "48px", color: "#94A3B8", fontSize: "14px" }}>No defects match filters</div> :
-          filtered.map(d => {
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px", color: "#94A3B8", fontSize: "14px" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>✅</div>
+              No defects match filters
+            </div>
+          ) : filtered.map(d => {
             const sev = SEVERITY[d.severity]; const stat = STATUS[d.status]; const days = getDaysAgo(d.reported_date);
             return (
-              <div key={d.id} onClick={() => setSelected(d)} style={{ background: "#FFFFFF", borderRadius: "16px", border: `1px solid ${d.severity === "dangerous" && d.status !== "closed" ? sev.border : "#E5E7EB"}`, overflow: "hidden", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.15s ease" }}
+              <div key={d.id} onClick={() => setSelected(d)}
+                style={{ background: "#FFFFFF", borderRadius: "16px", border: `1px solid ${d.severity === "dangerous" && d.status !== "closed" ? sev.border : "#E5E7EB"}`, overflow: "hidden", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", transition: "all 0.15s ease" }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; e.currentTarget.style.transform = ""; }}>
                 <div style={{ height: "3px", background: sev.dot }} />
@@ -336,12 +341,16 @@ export default function ComplyFleetDefects() {
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}><Pill config={sev} /><Pill config={stat} /></div>
                     <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.description}</h3>
                     <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "4px", display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                      <span>{TYPES[d.vehicle_type]} {d.vehicle_reg}</span><span>{"\u{1F3E2}"} {d.company_name}</span><span>{"\u{1F3F7}\uFE0F"} {d.category}</span></div>
+                      <span>{TYPES[d.vehicle_type] || "🚗"} {d.vehicle_reg}</span>
+                      {/* ✅ Only show company name for TMs */}
+                      {!isCompanyAdmin && <span>🏢 {d.company_name}</span>}
+                      <span>🏷️ {d.category}</span>
+                    </div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <div style={{ fontSize: "11px", color: "#94A3B8" }}>{formatDate(d.reported_date)}</div>
-                    <div style={{ fontSize: "12px", fontWeight: 700, color: days > 3 && d.status === "open" ? "#DC2626" : "#6B7280", marginTop: "2px" }}>{d.status === "closed" ? "Closed" : `${days}d open`}</div>
-                    {d.assigned_to && <div style={{ fontSize: "11px", color: "#2563EB", marginTop: "4px", fontWeight: 600 }}>{"\u{1F527}"} {d.assigned_to}</div>}
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: days > 3 && d.status === "open" ? "#DC2626" : "#6B7280", marginTop: "2px" }}>{d.status === "closed" ? "Closed" : `-${days}d open`}</div>
+                    {d.assigned_to && <div style={{ fontSize: "11px", color: "#2563EB", marginTop: "4px", fontWeight: 600 }}>🔧 {d.assigned_to}</div>}
                   </div>
                 </div>
               </div>
@@ -360,52 +369,74 @@ export default function ComplyFleetDefects() {
               <div style={{ height: "4px", background: sev.dot }} />
               <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div><div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}><Pill config={stat} /><Pill config={sev} /></div>
-                    <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{d.description}</h2></div>
-                  <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94A3B8" }}>{"\u2715"}</button>
+                  <div>
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}><Pill config={stat} /><Pill config={sev} /></div>
+                    <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: 0 }}>{d.description}</h2>
+                  </div>
+                  <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94A3B8" }}>✕</button>
                 </div>
               </div>
               <div style={{ padding: "24px 28px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "20px" }}>
-                  {[{ l: "Vehicle", v: d.vehicle_reg, i: TYPES[d.vehicle_type] }, { l: "Company", v: (d.company_name || "").split(" ").slice(0, 2).join(" "), i: "\u{1F3E2}" }, { l: "Reported", v: formatDate(d.reported_date), i: "\u{1F4C5}" }, { l: "Category", v: d.category, i: "\u{1F3F7}\uFE0F" }, { l: "Reported By", v: d.reported_by || "\u2014", i: "\u{1F464}" }, { l: "Assigned To", v: d.assigned_to || "Unassigned", i: "\u{1F527}" }].map(f => (
+                  {[
+                    { l: "Vehicle", v: d.vehicle_reg, i: TYPES[d.vehicle_type] || "🚗" },
+                    { l: "Company", v: (d.company_name || "").split(" ").slice(0, 2).join(" "), i: "🏢" },
+                    { l: "Reported", v: formatDate(d.reported_date), i: "📅" },
+                    { l: "Category", v: d.category, i: "🏷️" },
+                    { l: "Reported By", v: d.reported_by || "—", i: "👤" },
+                    { l: "Assigned To", v: d.assigned_to || "Unassigned", i: "🔧" },
+                  ].map(f => (
                     <div key={f.l} style={{ padding: "10px 12px", borderRadius: "10px", background: "#F8FAFC" }}>
                       <div style={{ fontSize: "10px", color: "#6B7280", fontWeight: 600, textTransform: "uppercase" }}>{f.i} {f.l}</div>
-                      <div style={{ fontSize: "13px", fontWeight: 600, color: f.v === "Unassigned" ? "#DC2626" : "#111827", marginTop: "2px" }}>{f.v}</div></div>))}
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: f.v === "Unassigned" ? "#DC2626" : "#111827", marginTop: "2px" }}>{f.v}</div>
+                    </div>
+                  ))}
                 </div>
-                {d.notes && d.notes.length > 0 && (<div style={{ marginBottom: "20px" }}>
-                  <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", marginBottom: "10px" }}>{"\u{1F4DD}"} Timeline ({d.notes.length})</h3>
-                  {d.notes.map((n, i) => (
-                    <div key={i} style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
-                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "linear-gradient(135deg, #1E40AF, #3B82F6)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "10px", flexShrink: 0 }}>{n.author.split(" ").map(x => x[0]).join("")}</div>
-                      <div style={{ flex: 1, padding: "10px 14px", borderRadius: "10px", background: "#F8FAFC", border: "1px solid #E5E7EB" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "12px", fontWeight: 700, color: "#111827" }}>{n.author}</span><span style={{ fontSize: "11px", color: "#94A3B8" }}>{formatDate(n.created_at)}</span></div>
-                        <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0 0", lineHeight: 1.5 }}>{n.text}</p></div>
-                    </div>))}
-                </div>)}
-                {d.resolved_date && (<div style={{ padding: "14px 18px", borderRadius: "12px", background: "#ECFDF5", border: "1px solid #A7F3D0", marginBottom: "20px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#065F46" }}>{"\u2705"} Resolved by {d.resolved_by} on {formatDate(d.resolved_date)}</span></div>)}
 
-                {/* NO DELETE — only status transitions */}
+                {d.notes && d.notes.length > 0 && (
+                  <div style={{ marginBottom: "20px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#0F172A", marginBottom: "10px" }}>📝 Timeline ({d.notes.length})</h3>
+                    {d.notes.map((n, i) => (
+                      <div key={i} style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+                        <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "linear-gradient(135deg, #1E40AF, #3B82F6)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "10px", flexShrink: 0 }}>{n.author.split(" ").map(x => x[0]).join("")}</div>
+                        <div style={{ flex: 1, padding: "10px 14px", borderRadius: "10px", background: "#F8FAFC", border: "1px solid #E5E7EB" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#111827" }}>{n.author}</span>
+                            <span style={{ fontSize: "11px", color: "#94A3B8" }}>{formatDate(n.created_at)}</span>
+                          </div>
+                          <p style={{ fontSize: "13px", color: "#374151", margin: "4px 0 0", lineHeight: 1.5 }}>{n.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {d.resolved_date && (
+                  <div style={{ padding: "14px 18px", borderRadius: "12px", background: "#ECFDF5", border: "1px solid #A7F3D0", marginBottom: "20px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#065F46" }}>✅ Resolved by {d.resolved_by} on {formatDate(d.resolved_date)}</span>
+                  </div>
+                )}
+
                 <div style={{ padding: "16px 0 0", borderTop: "1px solid #F3F4F6", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button onClick={() => printSingleDefect(d)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F4C4}"} Download PDF</button>
-                  <button onClick={() => setShowNote(d.id)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>{"\u{1F4DD}"} Add Note</button>
-                  {d.status === "open" && <button onClick={() => setConfirm({ title: "Assign & Start Work?", message: "This will move the defect to 'In Progress'.", icon: "\u{1F527}", confirmLabel: "Start Work", confirmColor: "#2563EB", onConfirm: () => changeStatus(d.id, "in_progress") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>{"\u{1F527}"} Assign & Start</button>}
-                  {d.status === "in_progress" && <button onClick={() => setConfirm({ title: "Mark as Resolved?", message: "Confirm the defect has been repaired.", icon: "\u2705", confirmLabel: "Resolve", confirmColor: "#059669", onConfirm: () => changeStatus(d.id, "resolved") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #059669, #10B981)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>{"\u2705"} Mark Resolved</button>}
-                  {d.status === "resolved" && <button onClick={() => setConfirm({ title: "Close Defect?", message: "This is final. Closed defects cannot be reopened.", icon: "\u{1F512}", confirmLabel: "Close Defect", confirmColor: "#374151", onConfirm: () => changeStatus(d.id, "closed") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>{"\u{1F512}"} Close Defect</button>}
-                  {d.status === "closed" && <div style={{ padding: "10px 16px", borderRadius: "10px", background: "#F3F4F6", fontSize: "12px", fontWeight: 700, color: "#6B7280" }}>{"\u{1F512}"} This defect is closed and cannot be reopened or deleted</div>}
+                  <button onClick={() => printSingleDefect(d)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>📄 Download PDF</button>
+                  <button onClick={() => setShowNote(d.id)} style={{ padding: "10px 16px", borderRadius: "10px", border: "1px solid #E5E7EB", background: "#FFF", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer" }}>📝 Add Note</button>
+                  {d.status === "open" && <button onClick={() => setConfirm({ title: "Assign & Start Work?", message: "This will move the defect to 'In Progress'.", icon: "🔧", confirmLabel: "Start Work", confirmColor: "#2563EB", onConfirm: () => changeStatus(d.id, "in_progress") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>🔧 Assign & Start</button>}
+                  {d.status === "in_progress" && <button onClick={() => setConfirm({ title: "Mark as Resolved?", message: "Confirm the defect has been repaired.", icon: "✅", confirmLabel: "Resolve", confirmColor: "#059669", onConfirm: () => changeStatus(d.id, "resolved") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #059669, #10B981)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>✅ Mark Resolved</button>}
+                  {d.status === "resolved" && <button onClick={() => setConfirm({ title: "Close Defect?", message: "This is final. Closed defects cannot be reopened.", icon: "🔒", confirmLabel: "Close Defect", confirmColor: "#374151", onConfirm: () => changeStatus(d.id, "closed") })} style={{ padding: "10px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #0F172A, #1E293B)", color: "white", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>🔒 Close Defect</button>}
+                  {d.status === "closed" && <div style={{ padding: "10px 16px", borderRadius: "10px", background: "#F3F4F6", fontSize: "12px", fontWeight: 700, color: "#6B7280" }}>🔒 This defect is closed and cannot be reopened</div>}
                 </div>
               </div>
             </div>
-          </div>);
+          </div>
+        );
       })()}
 
-      <footer style={{ textAlign: "center", padding: "24px 20px", marginTop: "40px", borderTop: "1px solid #E2E8F0", color: "#94A3B8", fontSize: "11px" }}>ComplyFleet v1.0 {"\u00B7"} DVSA Compliance Platform {"\u00B7"} {"\u00A9"} 2026</footer>
+      <footer style={{ textAlign: "center", padding: "24px 20px", marginTop: "40px", borderTop: "1px solid #E2E8F0", color: "#94A3B8", fontSize: "11px" }}>ComplyFleet v1.0 · DVSA Compliance Platform · © 2026</footer>
 
-      {showAdd && <AddDefectModal onSave={addDefect} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddDefectModal onSave={addDefect} onClose={() => setShowAdd(false)} defaultCompanyName={myCompany?.name || ""} />}
       {showNote && <AddNoteModal defectId={showNote} onSave={addNote} onClose={() => setShowNote(null)} />}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );
 }
-
