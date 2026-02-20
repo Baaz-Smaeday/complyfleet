@@ -27,83 +27,36 @@ const TYPES = { HGV: "🚛", Van: "🚐", Trailer: "🔗" };
 const DATE_FIELDS = ["mot_due", "pmi_due", "insurance_due", "tacho_due", "service_due"];
 const FIELD_LABELS = { mot_due: "MOT", pmi_due: "PMI", insurance_due: "Insurance", tacho_due: "Tacho", service_due: "Service" };
 
-// ── Animated glow card wrapper ──────────────────────────────────────────────
 function GlowCard({ children, glowColor = "59,130,246", style = {}, onClick, href }) {
   const [hovered, setHovered] = useState(false);
-  const containerStyle = {
-    position: "relative",
-    borderRadius: "18px",
-    cursor: onClick || href ? "pointer" : "default",
-    ...style,
-  };
-  const glowStyle = {
-    position: "absolute",
-    inset: "-2px",
-    borderRadius: "20px",
-    background: hovered
-      ? `conic-gradient(from var(--angle), transparent 0%, rgba(${glowColor},0.9) 20%, rgba(${glowColor},0.4) 40%, transparent 60%, rgba(${glowColor},0.6) 80%, rgba(${glowColor},0.9) 100%)`
-      : "transparent",
-    animation: hovered ? "spin 2s linear infinite" : "none",
-    transition: "opacity 0.3s",
-    zIndex: 0,
-  };
-  const innerStyle = {
-    position: "relative",
-    zIndex: 1,
-    borderRadius: "16px",
-    background: "#FFF",
-    height: "100%",
-    transform: hovered ? "translateY(-3px)" : "none",
-    boxShadow: hovered ? `0 16px 40px rgba(${glowColor},0.2), 0 4px 12px rgba(0,0,0,0.08)` : "0 1px 3px rgba(0,0,0,0.06)",
-    transition: "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease",
-    overflow: "hidden",
-  };
-
-  const content = (
-    <div style={containerStyle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={onClick}>
-      <div style={glowStyle} />
-      <div style={innerStyle}>{children}</div>
-    </div>
-  );
-  if (href) return <a href={href} style={{ textDecoration: "none", color: "inherit", display: "block" }}
-    onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>{content}</a>;
+  const containerStyle = { position: "relative", borderRadius: "18px", cursor: onClick || href ? "pointer" : "default", ...style };
+  const glowStyle = { position: "absolute", inset: "-2px", borderRadius: "20px", background: hovered ? `conic-gradient(from var(--angle), transparent 0%, rgba(${glowColor},0.9) 20%, rgba(${glowColor},0.4) 40%, transparent 60%, rgba(${glowColor},0.6) 80%, rgba(${glowColor},0.9) 100%)` : "transparent", animation: hovered ? "spin 2s linear infinite" : "none", transition: "opacity 0.3s", zIndex: 0 };
+  const innerStyle = { position: "relative", zIndex: 1, borderRadius: "16px", background: "#FFF", height: "100%", transform: hovered ? "translateY(-3px)" : "none", boxShadow: hovered ? `0 16px 40px rgba(${glowColor},0.2), 0 4px 12px rgba(0,0,0,0.08)` : "0 1px 3px rgba(0,0,0,0.06)", transition: "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease", overflow: "hidden" };
+  const content = (<div style={containerStyle} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={onClick}><div style={glowStyle} /><div style={innerStyle}>{children}</div></div>);
+  if (href) return <a href={href} style={{ textDecoration: "none", color: "inherit", display: "block" }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>{content}</a>;
   return content;
 }
 
-// ── Count-up number ──────────────────────────────────────────────────────────
 function CountUp({ value, prefix = "", suffix = "" }) {
   const [display, setDisplay] = useState(0);
   const num = parseInt(String(value).replace(/[^0-9]/g, "")) || 0;
   useEffect(() => {
     if (num === 0) { setDisplay(0); return; }
-    let start = 0;
-    const dur = 800;
-    const step = 16;
-    const inc = num / (dur / step);
-    const t = setInterval(() => {
-      start += inc;
-      if (start >= num) { setDisplay(num); clearInterval(t); }
-      else setDisplay(Math.floor(start));
-    }, step);
+    let start = 0; const dur = 800; const step = 16; const inc = num / (dur / step);
+    const t = setInterval(() => { start += inc; if (start >= num) { setDisplay(num); clearInterval(t); } else setDisplay(Math.floor(start)); }, step);
     return () => clearInterval(t);
   }, [num]);
   if (isNaN(num)) return <>{value}</>;
   return <>{prefix}{display}{suffix}</>;
 }
 
-// ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({ icon, value, label, accent, sub, subDanger, href }) {
   return (
     <GlowCard glowColor={accent === "#DC2626" ? "220,38,38" : accent === "#2563EB" ? "37,99,235" : accent === "#059669" ? "5,150,105" : "15,23,42"} href={href}>
       <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: "16px" }}>
         <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: accent + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", flexShrink: 0 }}>{icon}</div>
         <div>
-          <div style={{ fontSize: "30px", fontWeight: 800, color: accent, lineHeight: 1 }}>
-            <CountUp value={value} />
-          </div>
+          <div style={{ fontSize: "30px", fontWeight: 800, color: accent, lineHeight: 1 }}><CountUp value={value} /></div>
           <div style={{ fontSize: "12px", color: "#6B7280", fontWeight: 600, marginTop: "4px" }}>{label}</div>
           {sub && <div style={{ fontSize: "11px", color: subDanger ? "#DC2626" : accent, fontWeight: 700, marginTop: "2px" }}>{sub}</div>}
         </div>
@@ -114,38 +67,20 @@ function StatCard({ icon, value, label, accent, sub, subDanger, href }) {
 
 function RiskPill({ level }) {
   const cfg = RISK[level];
-  return (<span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: "10px", fontWeight: 700, color: cfg.text, letterSpacing: "0.04em", flexShrink: 0 }}>
-    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: cfg.dot }} />{cfg.label}
-  </span>);
+  return (<span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: "10px", fontWeight: 700, color: cfg.text, letterSpacing: "0.04em", flexShrink: 0 }}><span style={{ width: "6px", height: "6px", borderRadius: "50%", background: cfg.dot }} />{cfg.label}</span>);
 }
 function SevPill({ level }) {
   const cfg = SEVERITY[level]; if (!cfg) return null;
-  return (<span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: "10px", fontWeight: 700, color: cfg.text, flexShrink: 0 }}>
-    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: cfg.dot }} />{cfg.label}
-  </span>);
+  return (<span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: "10px", fontWeight: 700, color: cfg.text, flexShrink: 0 }}><span style={{ width: "6px", height: "6px", borderRadius: "50%", background: cfg.dot }} />{cfg.label}</span>);
 }
 
-// ── Hoverable row ────────────────────────────────────────────────────────────
 function HoverRow({ children, href, glowColor = "59,130,246", borderLeft, style = {} }) {
   const [hovered, setHovered] = useState(false);
-  const s = {
-    display: "flex", alignItems: "center", gap: "12px",
-    padding: "13px 16px", borderRadius: "12px",
-    border: `1px solid ${hovered ? `rgba(${glowColor},0.5)` : "#E5E7EB"}`,
-    borderLeft: borderLeft ? `4px solid ${borderLeft}` : (hovered ? `1px solid rgba(${glowColor},0.5)` : "1px solid #E5E7EB"),
-    background: hovered ? `rgba(${glowColor},0.04)` : "#FFF",
-    marginBottom: "8px", cursor: "pointer",
-    transform: hovered ? "translateX(3px)" : "none",
-    boxShadow: hovered ? `0 4px 16px rgba(${glowColor},0.15)` : "none",
-    transition: "all 0.2s cubic-bezier(0.34,1.56,0.64,1)",
-    textDecoration: "none", color: "inherit",
-    ...style,
-  };
+  const s = { display: "flex", alignItems: "center", gap: "12px", padding: "13px 16px", borderRadius: "12px", border: `1px solid ${hovered ? `rgba(${glowColor},0.5)` : "#E5E7EB"}`, borderLeft: borderLeft ? `4px solid ${borderLeft}` : (hovered ? `1px solid rgba(${glowColor},0.5)` : "1px solid #E5E7EB"), background: hovered ? `rgba(${glowColor},0.04)` : "#FFF", marginBottom: "8px", cursor: "pointer", transform: hovered ? "translateX(3px)" : "none", boxShadow: hovered ? `0 4px 16px rgba(${glowColor},0.15)` : "none", transition: "all 0.2s cubic-bezier(0.34,1.56,0.64,1)", textDecoration: "none", color: "inherit", ...style };
   if (href) return <a href={href} style={s} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>{children}</a>;
   return <div style={s} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>{children}</div>;
 }
 
-// ── Section card wrapper ──────────────────────────────────────────────────────
 function Section({ title, rightContent, children, glowColor = "59,130,246" }) {
   return (
     <GlowCard glowColor={glowColor} style={{ marginBottom: "0" }}>
@@ -158,25 +93,12 @@ function Section({ title, rightContent, children, glowColor = "59,130,246" }) {
   );
 }
 
-// ── Quick link card ───────────────────────────────────────────────────────────
 function QuickLink({ href, icon, label, desc, glowColor }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <a href={href} style={{ textDecoration: "none", color: "inherit", position: "relative", borderRadius: "16px", display: "block" }}
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <div style={{
-        position: "absolute", inset: "-2px", borderRadius: "18px",
-        background: hovered ? `conic-gradient(from var(--angle), transparent 0%, rgba(${glowColor},0.8) 20%, transparent 50%, rgba(${glowColor},0.4) 80%, transparent 100%)` : "transparent",
-        animation: hovered ? "spin 2s linear infinite" : "none",
-        zIndex: 0,
-      }} />
-      <div style={{
-        position: "relative", zIndex: 1, background: "#FFF", borderRadius: "14px",
-        padding: "18px 20px", display: "flex", alignItems: "center", gap: "14px",
-        transform: hovered ? "translateY(-3px)" : "none",
-        boxShadow: hovered ? `0 12px 32px rgba(${glowColor},0.2)` : "0 1px 3px rgba(0,0,0,0.05)",
-        transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-      }}>
+    <a href={href} style={{ textDecoration: "none", color: "inherit", position: "relative", borderRadius: "16px", display: "block" }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div style={{ position: "absolute", inset: "-2px", borderRadius: "18px", background: hovered ? `conic-gradient(from var(--angle), transparent 0%, rgba(${glowColor},0.8) 20%, transparent 50%, rgba(${glowColor},0.4) 80%, transparent 100%)` : "transparent", animation: hovered ? "spin 2s linear infinite" : "none", zIndex: 0 }} />
+      <div style={{ position: "relative", zIndex: 1, background: "#FFF", borderRadius: "14px", padding: "18px 20px", display: "flex", alignItems: "center", gap: "14px", transform: hovered ? "translateY(-3px)" : "none", boxShadow: hovered ? `0 12px 32px rgba(${glowColor},0.2)` : "0 1px 3px rgba(0,0,0,0.05)", transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)" }}>
         <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: `rgba(${glowColor},0.1)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>{icon}</div>
         <div>
           <div style={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>{label}</div>
@@ -187,92 +109,35 @@ function QuickLink({ href, icon, label, desc, glowColor }) {
   );
 }
 
-
-// ── Company card (grid card with colour coded border + pulse on low score) ──
 function CompanyCard({ c, risk, rCfg, score, cVehicles, cDefects, isLowScore, animDelay }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <a href={`/portal?company=${c.id}`}
-      className="dash-row"
-      style={{
-        textDecoration: "none", color: "inherit",
-        display: "block", position: "relative",
-        borderRadius: "16px",
-        animationDelay: `${animDelay}ms`,
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}>
-      {/* Sweep glow border */}
-      <div style={{
-        position: "absolute", inset: "-2px", borderRadius: "18px",
-        background: hovered ? `conic-gradient(from var(--angle), transparent 0%, rgba(${rCfg.glow},0.9) 20%, rgba(${rCfg.glow},0.3) 40%, transparent 60%, rgba(${rCfg.glow},0.6) 80%, transparent 100%)` : "transparent",
-        animation: hovered ? "spin 2s linear infinite" : "none",
-        zIndex: 0,
-      }} />
-      <div style={{
-        position: "relative", zIndex: 1,
-        background: "#FFF",
-        borderRadius: "14px",
-        borderLeft: `4px solid ${rCfg.dot}`,
-        padding: "16px",
-        transform: hovered ? "translateY(-3px)" : "none",
-        boxShadow: hovered ? `0 12px 32px rgba(${rCfg.glow},0.2)` : "0 1px 3px rgba(0,0,0,0.05)",
-        transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-      }}>
-        {/* Top row: donut + name */}
+    <a href={`/portal?company=${c.id}`} className="dash-row" style={{ textDecoration: "none", color: "inherit", display: "block", position: "relative", borderRadius: "16px", animationDelay: `${animDelay}ms` }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div style={{ position: "absolute", inset: "-2px", borderRadius: "18px", background: hovered ? `conic-gradient(from var(--angle), transparent 0%, rgba(${rCfg.glow},0.9) 20%, rgba(${rCfg.glow},0.3) 40%, transparent 60%, rgba(${rCfg.glow},0.6) 80%, transparent 100%)` : "transparent", animation: hovered ? "spin 2s linear infinite" : "none", zIndex: 0 }} />
+      <div style={{ position: "relative", zIndex: 1, background: "#FFF", borderRadius: "14px", borderLeft: `4px solid ${rCfg.dot}`, padding: "16px", transform: hovered ? "translateY(-3px)" : "none", boxShadow: hovered ? `0 12px 32px rgba(${rCfg.glow},0.2)` : "0 1px 3px rgba(0,0,0,0.05)", transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-          <div style={{ animation: isLowScore ? "pulse-ring 2s ease infinite" : "none", flexShrink: 0 }}>
-            <ComplianceDonutInline score={score} size={48} />
-          </div>
+          <div style={{ animation: isLowScore ? "pulse-ring 2s ease infinite" : "none", flexShrink: 0 }}><ComplianceDonutInline score={score} size={48} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 800, fontSize: "14px", color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
             <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{c.o_licence || "No licence"}</div>
           </div>
           <RiskPill level={risk} />
         </div>
-        {/* Stats row */}
         <div style={{ display: "flex", gap: "8px" }}>
-          <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-            <div style={{ fontSize: "16px", fontWeight: 800, color: "#059669" }}>{cVehicles.length}</div>
-            <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Vehicles</div>
-          </div>
-          <div style={{ flex: 1, background: cDefects.length > 0 ? "#FEF2F2" : "#F8FAFC", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-            <div style={{ fontSize: "16px", fontWeight: 800, color: cDefects.length > 0 ? "#DC2626" : "#10B981" }}>{cDefects.length}</div>
-            <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Defects</div>
-          </div>
-          <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-            <div style={{ fontSize: "16px", fontWeight: 800, color: "#2563EB" }}>{score}</div>
-            <div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Score</div>
-          </div>
+          <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px", textAlign: "center" }}><div style={{ fontSize: "16px", fontWeight: 800, color: "#059669" }}>{cVehicles.length}</div><div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Vehicles</div></div>
+          <div style={{ flex: 1, background: cDefects.length > 0 ? "#FEF2F2" : "#F8FAFC", borderRadius: "8px", padding: "8px", textAlign: "center" }}><div style={{ fontSize: "16px", fontWeight: 800, color: cDefects.length > 0 ? "#DC2626" : "#10B981" }}>{cDefects.length}</div><div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Defects</div></div>
+          <div style={{ flex: 1, background: "#F8FAFC", borderRadius: "8px", padding: "8px", textAlign: "center" }}><div style={{ fontSize: "16px", fontWeight: 800, color: "#2563EB" }}>{score}</div><div style={{ fontSize: "9px", color: "#94A3B8", fontWeight: 700, textTransform: "uppercase" }}>Score</div></div>
         </div>
       </div>
     </a>
   );
 }
 
-// ── Defect card with severity-coloured background ────────────────────────────
 function DefectCard({ d, sev, sCfg }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <a href="/defects"
-      style={{
-        display: "flex", alignItems: "center", gap: "12px",
-        padding: "13px 16px", borderRadius: "12px",
-        border: `1px solid ${hovered ? sCfg.border : "#E5E7EB"}`,
-        borderLeft: `4px solid ${sCfg.dot}`,
-        background: hovered ? sCfg.bg : "#FFF",
-        marginBottom: "8px",
-        transform: hovered ? "translateX(3px)" : "none",
-        boxShadow: hovered ? `0 4px 16px rgba(${sCfg.glow},0.15)` : "none",
-        transition: "all 0.2s cubic-bezier(0.34,1.56,0.64,1)",
-        textDecoration: "none", color: "inherit",
-        cursor: "pointer",
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}>
-      <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: sCfg.bg, border: `1px solid ${sCfg.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
-        {sev === "dangerous" ? "🚨" : sev === "major" ? "⚠️" : "🔧"}
-      </div>
+    <a href="/defects" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "13px 16px", borderRadius: "12px", border: `1px solid ${hovered ? sCfg.border : "#E5E7EB"}`, borderLeft: `4px solid ${sCfg.dot}`, background: hovered ? sCfg.bg : "#FFF", marginBottom: "8px", transform: hovered ? "translateX(3px)" : "none", boxShadow: hovered ? `0 4px 16px rgba(${sCfg.glow},0.15)` : "none", transition: "all 0.2s cubic-bezier(0.34,1.56,0.64,1)", textDecoration: "none", color: "inherit", cursor: "pointer" }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: sCfg.bg, border: `1px solid ${sCfg.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>{sev === "dangerous" ? "🚨" : sev === "major" ? "⚠️" : "🔧"}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "13px", fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.description}</div>
         <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{TYPES[d.vehicle_type] || "🚗"} {d.vehicle_reg} · {d.category}</div>
@@ -282,7 +147,6 @@ function DefectCard({ d, sev, sCfg }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════════════════════
 export default function ComplyFleetDashboard() {
   const [companies, setCompanies] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -301,14 +165,14 @@ export default function ComplyFleetDashboard() {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) { window.location.href = "/login"; return; }
         supabase.from("profiles").select("*").eq("id", session.user.id).single().then(({ data }) => {
-         if (data) {
- if (data.account_status === "inactive") {
-   window.location.href = "/suspended?reason=inactive";
-    return;
-  }
-  setProfile(data);
-  loadData(data);
-}
+          if (data) {
+            if (data.account_status === "inactive") {
+              window.location.href = "/suspended?reason=inactive";
+              return;
+            }
+            setProfile(data);
+            loadData(data);
+          }
         });
       });
     } else { loadData(null); }
@@ -319,10 +183,8 @@ export default function ComplyFleetDashboard() {
     setAddingCompany(true);
     const { data: { session } } = await supabase.auth.getSession();
     const { data: comp, error } = await supabase.from("companies").insert({
-      name: newCompany.name.trim(),
-      o_licence: newCompany.o_licence.trim() || null,
-      contact_email: newCompany.contact_email.trim() || null,
-      contact_phone: newCompany.contact_phone.trim() || null,
+      name: newCompany.name.trim(), o_licence: newCompany.o_licence.trim() || null,
+      contact_email: newCompany.contact_email.trim() || null, contact_phone: newCompany.contact_phone.trim() || null,
       address: newCompany.address.trim() || null,
     }).select().single();
     if (error) { setAddingCompany(false); return; }
@@ -361,8 +223,7 @@ export default function ComplyFleetDashboard() {
 
   function getCompanyRisk(cid) {
     const vehs = vehicles.filter(v => v.company_id === cid);
-    let worst = "green";
-    const p = { high: 3, medium: 2, low: 1, green: 0 };
+    let worst = "green"; const p = { high: 3, medium: 2, low: 1, green: 0 };
     vehs.forEach(v => DATE_FIELDS.forEach(f => { const r = getRisk(getDaysUntil(v[f])); if (p[r] > p[worst]) worst = r; }));
     return worst;
   }
@@ -389,7 +250,6 @@ export default function ComplyFleetDashboard() {
         .dash-row { animation: fadeSlideUp 0.4s ease both; }
       `}</style>
 
-      {/* ── Header ── */}
       <header style={{ background: "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)", padding: "0 24px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🚛</div>
@@ -427,15 +287,12 @@ export default function ComplyFleetDashboard() {
       </header>
 
       <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "28px 20px" }}>
-
-        {/* ── Page title + company selector ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#0F172A" }}>📊 TM Dashboard</h1>
             <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Compliance overview across all operators</p>
           </div>
-          <select value={selectedCompany} onChange={e => setSelectedCompany(e.target.value)}
-            style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #E2E8F0", fontSize: "13px", fontWeight: 600, background: "#FFF", fontFamily: "inherit", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", cursor: "pointer" }}>
+          <select value={selectedCompany} onChange={e => setSelectedCompany(e.target.value)} style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #E2E8F0", fontSize: "13px", fontWeight: 600, background: "#FFF", fontFamily: "inherit", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", cursor: "pointer" }}>
             <option value="all">All Companies ({companies.length})</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -447,8 +304,6 @@ export default function ComplyFleetDashboard() {
             <p style={{ fontWeight: 600 }}>Loading dashboard...</p>
           </div>
         ) : (<>
-
-          {/* ── 4 KPI stat cards ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginBottom: "24px" }}>
             <StatCard icon="🏢" value={selectedCompany === "all" ? companies.length : 1} label="Companies" accent="#2563EB" href="/company" />
             <StatCard icon="🚛" value={filteredVehicles.length} label="Active Vehicles" accent="#0F172A" sub={overdue > 0 ? `${overdue} overdue` : "All compliant"} subDanger={overdue > 0} href="/vehicles?filter=active" />
@@ -456,7 +311,6 @@ export default function ComplyFleetDashboard() {
             <StatCard icon="📋" value={checks.length} label="Recent Checks" accent="#059669" href="/checks?range=30d" />
           </div>
 
-          {/* ── Alert banner ── */}
           {(overdue > 0 || dangerousOpen > 0) && (
             <div style={{ padding: "16px 22px", borderRadius: "16px", background: "linear-gradient(135deg, #FEF2F2, #FFF5F5)", border: "2px solid #FECACA", marginBottom: "24px", display: "flex", alignItems: "center", gap: "14px", animation: "pulse-alert 3s ease infinite" }}>
               <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>🚨</div>
@@ -471,42 +325,32 @@ export default function ComplyFleetDashboard() {
             </div>
           )}
 
-          {/* ── Main 2-col grid ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-
-            {/* ── LEFT COLUMN ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-              {/* Companies */}
               {selectedCompany === "all" && (
                 <Section title="🏢 Operator Companies" glowColor="37,99,235" rightContent={<button onClick={() => setShowAddCompany(true)} style={{ padding: "7px 16px", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "12px", border: "none", cursor: "pointer" }}>+ Add Company</button>}>
-                  {companies.length === 0
-                    ? (
-                      <div style={{ textAlign: "center", padding: "40px 32px" }}>
-                        <div style={{ fontSize: "40px", marginBottom: "12px" }}>🏢</div>
-                        <div style={{ fontWeight: 800, fontSize: "15px", color: "#111827", marginBottom: "6px" }}>No companies yet</div>
-                        <div style={{ fontSize: "12px", color: "#94A3B8", marginBottom: "20px" }}>Add your first operator company to get started</div>
-                        <button onClick={() => setShowAddCompany(true)} style={{ display: "inline-block", padding: "10px 24px", borderRadius: "12px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "13px", border: "none", cursor: "pointer" }}>+ Add Company</button>
-                      </div>
-                    )
-                    : (<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "10px" }}>
-                        {companies.map((c, i) => {
-                          const risk = getCompanyRisk(c.id);
-                          const cVehicles = vehicles.filter(v => v.company_id === c.id);
-                          const cDefects = defects.filter(d => d.company_id === c.id);
-                          const score = calcComplianceScore(cVehicles, cDefects);
-                          const rCfg = RISK[risk];
-                          const isLowScore = score < 50;
-                          return (
-                            <CompanyCard key={c.id} c={c} risk={risk} rCfg={rCfg} score={score} cVehicles={cVehicles} cDefects={cDefects} isLowScore={isLowScore} animDelay={i * 60} />
-                          );
-                        })}
-                      </div>)
-                  }
+                  {companies.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px 32px" }}>
+                      <div style={{ fontSize: "40px", marginBottom: "12px" }}>🏢</div>
+                      <div style={{ fontWeight: 800, fontSize: "15px", color: "#111827", marginBottom: "6px" }}>No companies yet</div>
+                      <div style={{ fontSize: "12px", color: "#94A3B8", marginBottom: "20px" }}>Add your first operator company to get started</div>
+                      <button onClick={() => setShowAddCompany(true)} style={{ display: "inline-block", padding: "10px 24px", borderRadius: "12px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "13px", border: "none", cursor: "pointer" }}>+ Add Company</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "10px" }}>
+                      {companies.map((c, i) => {
+                        const risk = getCompanyRisk(c.id);
+                        const cVehicles = vehicles.filter(v => v.company_id === c.id);
+                        const cDefects = defects.filter(d => d.company_id === c.id);
+                        const score = calcComplianceScore(cVehicles, cDefects);
+                        const rCfg = RISK[risk];
+                        return <CompanyCard key={c.id} c={c} risk={risk} rCfg={rCfg} score={score} cVehicles={cVehicles} cDefects={cDefects} isLowScore={score < 50} animDelay={i * 60} />;
+                      })}
+                    </div>
+                  )}
                 </Section>
               )}
 
-              {/* Urgent compliance */}
               <Section title="⏰ Upcoming Compliance" glowColor="217,119,6">
                 {urgentVehicles.length === 0
                   ? <div style={{ textAlign: "center", padding: "32px", color: "#10B981", fontWeight: 700, fontSize: "13px" }}>✅ All vehicles compliant</div>
@@ -533,47 +377,26 @@ export default function ComplyFleetDashboard() {
               </Section>
             </div>
 
-            {/* ── RIGHT COLUMN ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-              {/* Open Defects */}
-              <Section
-                title="🔴 Open Defects"
-                glowColor="220,38,38"
+              <Section title="🔴 Open Defects" glowColor="220,38,38"
                 rightContent={<>
-                  <ExportDropdown
-                    onCSV={() => exportDefectsCSV(filteredDefects)}
-                    onPDF={() => printReport("Open Defects", `${filteredDefects.length} defects`, ["Vehicle", "Description", "Category", "Severity", "Status", "Reported"], filteredDefects.map(d => [d.vehicle_reg, d.description, d.category, (d.severity || "").toUpperCase(), d.status, formatDate(d.reported_date)]), row => row[3] === "DANGEROUS" ? "danger" : row[3] === "MAJOR" ? "warn" : "")}
-                  />
+                  <ExportDropdown onCSV={() => exportDefectsCSV(filteredDefects)} onPDF={() => printReport("Open Defects", `${filteredDefects.length} defects`, ["Vehicle", "Description", "Category", "Severity", "Status", "Reported"], filteredDefects.map(d => [d.vehicle_reg, d.description, d.category, (d.severity || "").toUpperCase(), d.status, formatDate(d.reported_date)]), row => row[3] === "DANGEROUS" ? "danger" : row[3] === "MAJOR" ? "warn" : "")} />
                   <a href="/defects?status=open" style={{ fontSize: "12px", fontWeight: 700, color: "#2563EB", textDecoration: "none" }}>View All →</a>
-                </>}
-              >
+                </>}>
                 {filteredDefects.length === 0
                   ? <div style={{ textAlign: "center", padding: "32px", color: "#10B981", fontWeight: 700, fontSize: "13px" }}>✅ No open defects</div>
                   : filteredDefects.slice(0, 8).map((d, i) => {
-                    const sev = d.severity || "minor";
-                    const sCfg = SEVERITY[sev] || SEVERITY.minor;
-                    return (
-                      <div key={d.id} className="dash-row" style={{ animationDelay: `${i * 50}ms` }}>
-                        <DefectCard d={d} sev={sev} sCfg={sCfg} />
-                      </div>
-                    );
+                    const sev = d.severity || "minor"; const sCfg = SEVERITY[sev] || SEVERITY.minor;
+                    return <div key={d.id} className="dash-row" style={{ animationDelay: `${i * 50}ms` }}><DefectCard d={d} sev={sev} sCfg={sCfg} /></div>;
                   })
                 }
               </Section>
 
-              {/* Recent Checks */}
-              <Section
-                title="📋 Recent Walkaround Checks"
-                glowColor="5,150,105"
+              <Section title="📋 Recent Walkaround Checks" glowColor="5,150,105"
                 rightContent={<>
-                  <ExportDropdown
-                    onCSV={() => exportChecksCSV(checks)}
-                    onPDF={() => printReport("Walkaround Checks", `${checks.length} checks`, ["Ref", "Vehicle", "Driver", "Result", "Defects", "Date"], checks.map(ch => [ch.reference_id, ch.vehicle_reg, ch.driver_name, ch.result === "pass" ? "✅ PASS" : "⚠️ FAIL", ch.defects_reported || 0, formatDate(ch.completed_at)]), row => row[3].includes("FAIL") ? "danger" : "")}
-                  />
+                  <ExportDropdown onCSV={() => exportChecksCSV(checks)} onPDF={() => printReport("Walkaround Checks", `${checks.length} checks`, ["Ref", "Vehicle", "Driver", "Result", "Defects", "Date"], checks.map(ch => [ch.reference_id, ch.vehicle_reg, ch.driver_name, ch.result === "pass" ? "✅ PASS" : "⚠️ FAIL", ch.defects_reported || 0, formatDate(ch.completed_at)]), row => row[3].includes("FAIL") ? "danger" : "")} />
                   <a href="/checks?range=30d" style={{ fontSize: "12px", fontWeight: 700, color: "#2563EB", textDecoration: "none" }}>View All →</a>
-                </>}
-              >
+                </>}>
                 {checks.length === 0
                   ? <div style={{ textAlign: "center", padding: "32px", color: "#94A3B8", fontSize: "13px" }}>No checks yet</div>
                   : checks.slice(0, 8).map((ch, i) => {
@@ -599,58 +422,54 @@ export default function ComplyFleetDashboard() {
             </div>
           </div>
 
-          {/* ── Quick links ── */}
+          {/* ── Quick links — TACHO ADDED ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginTop: "28px" }}>
             {[
-              { href: "/company",            icon: "🏢", label: "Companies & Fleet",   desc: "Add/edit companies and vehicles",  glowColor: "37,99,235" },
-              { href: "/defects?status=open", icon: "⚠️", label: "Defect Management",   desc: "Track and resolve defects",        glowColor: "220,38,38" },
-              { href: "/vehicles",            icon: "🚛", label: "Vehicle Compliance",  desc: "MOT, PMI, insurance dates",        glowColor: "15,23,42"  },
-              { href: "/checks",              icon: "📋", label: "Walkaround Checks",   desc: "View all checks across companies", glowColor: "5,150,105" },
-              { href: "/qr-codes",            icon: "📱", label: "QR Codes",            desc: "Generate vehicle QR codes",        glowColor: "124,58,237"},
+              { href: "/company",            icon: "🏢", label: "Companies & Fleet",   desc: "Add/edit companies and vehicles",    glowColor: "37,99,235"  },
+              { href: "/defects?status=open", icon: "⚠️", label: "Defect Management",   desc: "Track and resolve defects",          glowColor: "220,38,38"  },
+              { href: "/vehicles",            icon: "🚛", label: "Vehicle Compliance",  desc: "MOT, PMI, insurance dates",          glowColor: "15,23,42"   },
+              { href: "/checks",              icon: "📋", label: "Walkaround Checks",   desc: "View all checks across companies",   glowColor: "5,150,105"  },
+              { href: "/qr-codes",            icon: "📱", label: "QR Codes",            desc: "Generate vehicle QR codes",          glowColor: "124,58,237" },
+              { href: "/tacho",               icon: "🗂️", label: "Tacho Compliance",   desc: "Driver & vehicle download tracking", glowColor: "124,58,237" },
             ].map(l => <QuickLink key={l.href} {...l} />)}
           </div>
-
         </>)}
       </main>
+
       <footer style={{ textAlign: "center", padding: "24px 20px", marginTop: "40px", borderTop: "1px solid #E2E8F0", color: "#94A3B8", fontSize: "11px" }}>
         ComplyFleet v1.0 · DVSA Compliance Platform · © 2026
       </footer>
 
-  {showAddCompany && (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}
-      onClick={() => setShowAddCompany(false)}>
-      <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
-          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
-          <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
-        </div>
-        <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
-          {[
-            { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
-            { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
-            { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
-            { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
-            { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
-          ].map(f => (
-            <div key={f.key}>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
-              <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})}
-                placeholder={f.placeholder}
-                style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+      {showAddCompany && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }} onClick={() => setShowAddCompany(false)}>
+          <div style={{ background: "#FFF", borderRadius: "20px", width: "100%", maxWidth: "480px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "24px 28px", borderBottom: "1px solid #F3F4F6" }}>
+              <div style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A" }}>🏢 Add New Company</div>
+              <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>Add an operator company to your account</div>
             </div>
-          ))}
+            <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "14px" }}>
+              {[
+                { key: "name", label: "Company Name *", placeholder: "Hargreaves Haulage Ltd" },
+                { key: "o_licence", label: "Operator Licence", placeholder: "OB1234567" },
+                { key: "contact_email", label: "Contact Email", placeholder: "ops@company.co.uk" },
+                { key: "contact_phone", label: "Contact Phone", placeholder: "0161 234 5678" },
+                { key: "address", label: "Address", placeholder: "Manchester, M1 2AB" },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>{f.label}</label>
+                  <input value={newCompany[f.key]} onChange={e => setNewCompany({...newCompany, [f.key]: e.target.value})} placeholder={f.placeholder} style={{ width: "100%", padding: "10px 14px", border: "1px solid #E5E7EB", borderRadius: "10px", fontSize: "14px", outline: "none", fontFamily: "inherit" }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => addCompany()} disabled={addingCompany || !newCompany.name.trim()} style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                {addingCompany ? "Adding..." : "Add Company"}
+              </button>
+            </div>
+          </div>
         </div>
-        <div style={{ padding: "20px 28px", borderTop: "1px solid #F3F4F6", background: "#F8FAFC", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-          <button onClick={() => setShowAddCompany(false)} style={{ padding: "10px 20px", border: "1px solid #E5E7EB", borderRadius: "10px", background: "#FFF", fontSize: "13px", fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
-          <button onClick={() => addCompany()} disabled={addingCompany || !newCompany.name.trim()}
-            style={{ padding: "10px 24px", border: "none", borderRadius: "10px", background: newCompany.name.trim() ? "linear-gradient(135deg, #2563EB, #3B82F6)" : "#E5E7EB", color: "white", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-            {addingCompany ? "Adding..." : "Add Company"}
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
+      )}
     </div>
   );
 }
