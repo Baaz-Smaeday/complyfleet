@@ -89,7 +89,7 @@ async function downloadCheckPDFReal(ch, items) {
   }
   doc.setFillColor(248, 250, 252); doc.rect(0, 287, pageW, 10, "F");
   doc.setTextColor(148, 163, 184); doc.setFontSize(7);
-  doc.text("ComplyFleet · DVSA Compliance Platform · complyfleet.vercel.app · Record permanently stored", pageW / 2, 293, { align: "center" });
+  doc.text("ComplyFleet · DVSA Compliance Platform · www.complyfleet.co.uk · Record permanently stored", pageW / 2, 293, { align: "center" });
   const filename = `WC-${ch.reference_id || ch.id.slice(0, 8)}-${formatDate(ch.completed_at).replace(/ /g, "")}.pdf`;
   doc.save(filename);
 }
