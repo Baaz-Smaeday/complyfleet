@@ -160,6 +160,9 @@ export default function ComplyFleetDashboard() {
   const [profile, setProfile] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  // ✅ NEW: track if this is a company_admin login
+  const isCompanyAdmin = profile?.role === "company_admin" || profile?.role === "company_viewer";
+
   useEffect(() => {
     if (isSupabaseReady()) {
       supabase.auth.getSession().then(({ data: { session } }) => {
@@ -199,17 +202,27 @@ export default function ComplyFleetDashboard() {
     setLoading(true);
     if (isSupabaseReady()) {
       let companyIds = null;
+
       if (userProfile?.role === "tm") {
+        // TM: load only their linked companies
         const { data: links } = await supabase.from("tm_companies").select("company_id").eq("tm_id", userProfile.id);
         companyIds = (links || []).map(l => l.company_id);
+      } else if (userProfile?.role === "company_admin" || userProfile?.role === "company_viewer") {
+        // ✅ COMPANY ADMIN: load only their own company via user_id
+        const { data: comp } = await supabase.from("companies").select("id").eq("user_id", userProfile.id).single();
+        companyIds = comp ? [comp.id] : [];
       }
+
       const nullId = ["00000000-0000-0000-0000-000000000000"];
       const ids = companyIds?.length > 0 ? companyIds : nullId;
+
       let cQ = supabase.from("companies").select("*").is("archived_at", null).order("name");
       let vQ = supabase.from("vehicles").select("*").is("archived_at", null).order("reg");
       let dQ = supabase.from("defects").select("*").in("status", ["open", "in_progress"]).order("reported_date", { ascending: false });
       let chQ = supabase.from("walkaround_checks").select("*").order("completed_at", { ascending: false }).limit(20);
+
       if (companyIds) { cQ = cQ.in("id", ids); vQ = vQ.in("company_id", ids); dQ = dQ.in("company_id", ids); chQ = chQ.in("company_id", ids); }
+
       const [cR, vR, dR, chR] = await Promise.all([cQ, vQ, dQ, chQ]);
       setCompanies(cR.data || []); setVehicles(vR.data || []); setDefects(dR.data || []); setChecks(chR.data || []);
     }
@@ -236,6 +249,11 @@ export default function ComplyFleetDashboard() {
 
   const initials = (name) => (name || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
+  // ✅ Company admin sees their company name; TM sees their name
+  const headerName = isCompanyAdmin ? (companies[0]?.name || "Company") : (profile?.full_name || "User");
+  const headerRole = isCompanyAdmin ? "COMPANY ADMIN" : (profile?.role || "").replace("_", " ").toUpperCase();
+  const avatarColor = isCompanyAdmin ? "linear-gradient(135deg, #059669, #10B981)" : "linear-gradient(135deg, #10B981, #059669)";
+
   return (
     <div style={{ minHeight: "100vh", background: "#F1F5F9", fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif" }}>
       <style>{`
@@ -254,20 +272,22 @@ export default function ComplyFleetDashboard() {
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #3B82F6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🚛</div>
           <span style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Comply<span style={{ color: "#60A5FA" }}>Fleet</span></span>
+          {/* ✅ Show COMPANY badge for company admins */}
+          {isCompanyAdmin && <span style={{ padding: "3px 10px", borderRadius: "6px", background: "rgba(5,150,105,0.2)", color: "#6EE7B7", fontSize: "10px", fontWeight: 700 }}>COMPANY</span>}
         </a>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", position: "relative" }}>
           <span style={{ color: "#64748B", fontSize: "12px" }}>{formatDate(TODAY)}</span>
           <button onClick={() => setShowUserMenu(!showUserMenu)} style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: "pointer", padding: "4px" }}>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: "white", fontSize: "12px", fontWeight: 700 }}>{profile?.full_name || "User"}</div>
-              <div style={{ color: "#64748B", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>{(profile?.role || "").replace("_", " ")}</div>
+              <div style={{ color: "white", fontSize: "12px", fontWeight: 700 }}>{headerName}</div>
+              <div style={{ color: "#64748B", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>{headerRole}</div>
             </div>
-            <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "13px", border: "2px solid rgba(255,255,255,0.15)" }}>{initials(profile?.full_name)}</div>
+            <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: avatarColor, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "13px", border: "2px solid rgba(255,255,255,0.15)" }}>{initials(headerName)}</div>
           </button>
           {showUserMenu && (
             <div style={{ position: "absolute", right: 0, top: "52px", background: "white", borderRadius: "14px", boxShadow: "0 8px 40px rgba(0,0,0,0.18)", padding: "8px", minWidth: "210px", zIndex: 200 }}>
               <div style={{ padding: "12px 14px", borderBottom: "1px solid #F3F4F6", marginBottom: "4px" }}>
-                <div style={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>{profile?.full_name}</div>
+                <div style={{ fontSize: "13px", fontWeight: 800, color: "#111827" }}>{headerName}</div>
                 <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "2px" }}>{profile?.email}</div>
               </div>
               {profile?.role === "platform_owner" && (
@@ -289,13 +309,28 @@ export default function ComplyFleetDashboard() {
       <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "28px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#0F172A" }}>📊 TM Dashboard</h1>
-            <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Compliance overview across all operators</p>
+            {/* ✅ Company admin sees their company name as title */}
+            {isCompanyAdmin ? (
+              <>
+                <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#0F172A" }}>🏢 {companies[0]?.name || "Company Dashboard"}</h1>
+                <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>
+                  {companies[0]?.operator_licence ? `O-Licence: ${companies[0].operator_licence}` : "Compliance overview for your fleet"}
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#0F172A" }}>📊 TM Dashboard</h1>
+                <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>Compliance overview across all operators</p>
+              </>
+            )}
           </div>
-          <select value={selectedCompany} onChange={e => setSelectedCompany(e.target.value)} style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #E2E8F0", fontSize: "13px", fontWeight: 600, background: "#FFF", fontFamily: "inherit", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", cursor: "pointer" }}>
-            <option value="all">All Companies ({companies.length})</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          {/* ✅ Company admin doesn't get company filter dropdown */}
+          {!isCompanyAdmin && (
+            <select value={selectedCompany} onChange={e => setSelectedCompany(e.target.value)} style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #E2E8F0", fontSize: "13px", fontWeight: 600, background: "#FFF", fontFamily: "inherit", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", cursor: "pointer" }}>
+              <option value="all">All Companies ({companies.length})</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
         </div>
 
         {loading ? (
@@ -305,7 +340,8 @@ export default function ComplyFleetDashboard() {
           </div>
         ) : (<>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginBottom: "24px" }}>
-            <StatCard icon="🏢" value={selectedCompany === "all" ? companies.length : 1} label="Companies" accent="#2563EB" href="/company" />
+            {/* ✅ Company admin doesn't see "Companies" stat card */}
+            {!isCompanyAdmin && <StatCard icon="🏢" value={companies.length} label="Companies" accent="#2563EB" href="/company" />}
             <StatCard icon="🚛" value={filteredVehicles.length} label="Active Vehicles" accent="#0F172A" sub={overdue > 0 ? `${overdue} overdue` : "All compliant"} subDanger={overdue > 0} href="/vehicles?filter=active" />
             <StatCard icon="⚠️" value={filteredDefects.length} label="Open Defects" accent="#DC2626" sub={dangerousOpen > 0 ? `${dangerousOpen} dangerous` : "None dangerous"} subDanger={dangerousOpen > 0} href="/defects?status=open" />
             <StatCard icon="📋" value={checks.length} label="Recent Checks" accent="#059669" href="/checks?range=30d" />
@@ -327,7 +363,8 @@ export default function ComplyFleetDashboard() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              {selectedCompany === "all" && (
+              {/* ✅ Only TMs see the Operator Companies section with Add Company button */}
+              {selectedCompany === "all" && !isCompanyAdmin && (
                 <Section title="🏢 Operator Companies" glowColor="37,99,235" rightContent={<button onClick={() => setShowAddCompany(true)} style={{ padding: "7px 16px", borderRadius: "10px", background: "linear-gradient(135deg, #2563EB, #3B82F6)", color: "white", fontWeight: 700, fontSize: "12px", border: "none", cursor: "pointer" }}>+ Add Company</button>}>
                   {companies.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "40px 32px" }}>
@@ -422,18 +459,29 @@ export default function ComplyFleetDashboard() {
             </div>
           </div>
 
-          {/* ── Quick links — TACHO ADDED ── */}
+          {/* ✅ Quick links — TM gets all, company admin gets filtered set */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginTop: "28px" }}>
-            {[
-              { href: "/company",            icon: "🏢", label: "Companies & Fleet",   desc: "Add/edit companies and vehicles",    glowColor: "37,99,235"  },
-              { href: "/defects?status=open", icon: "⚠️", label: "Defect Management",   desc: "Track and resolve defects",          glowColor: "220,38,38"  },
-              { href: "/vehicles",            icon: "🚛", label: "Vehicle Compliance",  desc: "MOT, PMI, insurance dates",          glowColor: "15,23,42"   },
-              { href: "/checks",              icon: "📋", label: "Walkaround Checks",   desc: "View all checks across companies",   glowColor: "5,150,105"  },
-              { href: "/qr-codes",            icon: "📱", label: "QR Codes",            desc: "Generate vehicle QR codes",          glowColor: "124,58,237" },
-              { href: "/tacho",               icon: "🗂️", label: "Tacho Compliance",   desc: "Driver & vehicle download tracking", glowColor: "124,58,237" },
-      { href: "/dashboard/driver-hours", icon: "⏱️", label: "Driver Hours", desc: "Hours violations & DVSA limits", glowColor: "220,38,38" },
-      { href: "/dashboard/tacho-upload", icon: "📁", label: "Tacho Upload", desc: "Upload .ddd files from card reader", glowColor: "124,58,237" },
-            ].map(l => <QuickLink key={l.href} {...l} />)}
+            {isCompanyAdmin ? (
+              // Company admin quick links — no admin/TM tools
+              <>
+                <QuickLink href="/vehicles"            icon="🚛" label="Vehicle Compliance"  desc="MOT, PMI, insurance dates"          glowColor="15,23,42"   />
+                <QuickLink href="/defects?status=open" icon="⚠️" label="Defect Management"   desc="Track and resolve defects"          glowColor="220,38,38"  />
+                <QuickLink href="/checks"              icon="📋" label="Walkaround Checks"   desc="View all checks for your fleet"     glowColor="5,150,105"  />
+                <QuickLink href="/qr-codes"            icon="📱" label="QR Codes"            desc="Generate vehicle QR codes"          glowColor="124,58,237" />
+              </>
+            ) : (
+              // TM gets all quick links
+              <>
+                <QuickLink href="/company"            icon="🏢" label="Companies & Fleet"   desc="Add/edit companies and vehicles"    glowColor="37,99,235"  />
+                <QuickLink href="/defects?status=open" icon="⚠️" label="Defect Management"   desc="Track and resolve defects"          glowColor="220,38,38"  />
+                <QuickLink href="/vehicles"            icon="🚛" label="Vehicle Compliance"  desc="MOT, PMI, insurance dates"          glowColor="15,23,42"   />
+                <QuickLink href="/checks"              icon="📋" label="Walkaround Checks"   desc="View all checks across companies"   glowColor="5,150,105"  />
+                <QuickLink href="/qr-codes"            icon="📱" label="QR Codes"            desc="Generate vehicle QR codes"          glowColor="124,58,237" />
+                <QuickLink href="/tacho"               icon="🗂️" label="Tacho Compliance"   desc="Driver & vehicle download tracking" glowColor="124,58,237" />
+                <QuickLink href="/dashboard/driver-hours" icon="⏱️" label="Driver Hours"    desc="Hours violations & DVSA limits"    glowColor="220,38,38" />
+                <QuickLink href="/dashboard/tacho-upload" icon="📁" label="Tacho Upload"    desc="Upload .ddd files from card reader" glowColor="124,58,237" />
+              </>
+            )}
           </div>
         </>)}
       </main>
