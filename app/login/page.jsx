@@ -19,18 +19,18 @@ export default function LoginPage() {
   }, []);
 
   async function redirectByRole(userId) {
-    // ✅ FIX: also fetch subscription_status to block inactive/expired accounts
+    // ✅ FIX: also fetch account_status to block inactive/expired accounts
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, subscription_status")
+      .select("role, account_status")
       .eq("id", userId)
       .single();
 
     if (!profile) { window.location.href = "/dashboard"; return; }
 
     // Block deactivated or expired accounts before they get anywhere
-    if (profile.subscription_status === "inactive" || profile.subscription_status === "expired") {
-      window.location.href = "/suspended?reason=" + profile.subscription_status;
+    if (profile.account_status === "inactive") {
+      window.location.href = "/suspended?reason=" + profile.account_status;
       return;
     }
 
