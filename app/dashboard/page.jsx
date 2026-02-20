@@ -311,6 +311,8 @@ export default function ComplyFleetDashboard() {
           <div>
             {/* ✅ Company admin sees their company name as title */}
             {isCompanyAdmin ? (
+  // Company admin quick links
+  <>
               <>
                 <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#0F172A" }}>🏢 {companies[0]?.name || "Company Dashboard"}</h1>
                 <p style={{ fontSize: "13px", color: "#64748B", marginTop: "4px" }}>
