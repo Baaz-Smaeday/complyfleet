@@ -17,6 +17,7 @@ const VIOLATION_META = {
 };
 
 function fmtMins(mins) {
+  if (!mins) return '0h';
   const h = Math.floor(mins / 60); const m = mins % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
@@ -25,11 +26,11 @@ function Badge({ label, color, bg }) {
   return <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, color, background: bg, border: `1px solid ${color}33`, whiteSpace: 'nowrap' }}>{label}</span>;
 }
 
-function GlowCard({ children, glowColor = '37,99,235', style = {}, onClick }) {
+function GlowCard({ children, glowColor = '37,99,235', onClick }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={onClick}
-      style={{ position: 'relative', borderRadius: 18, cursor: onClick ? 'pointer' : 'default', ...style }}>
+      style={{ position: 'relative', borderRadius: 18, cursor: onClick ? 'pointer' : 'default' }}>
       <div style={{
         position: 'absolute', inset: -2, borderRadius: 20,
         background: hovered ? `conic-gradient(from var(--angle), transparent 0%, rgba(${glowColor},0.9) 20%, rgba(${glowColor},0.4) 40%, transparent 60%, rgba(${glowColor},0.6) 80%, rgba(${glowColor},0.9) 100%)` : 'transparent',
@@ -51,7 +52,7 @@ function StatCard({ icon, value, label, color, glowColor, danger }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ position: 'relative', borderRadius: 18, flex: 1, minWidth: 140 }}>
+      style={{ position: 'relative', borderRadius: 18, flex: 1, minWidth: 130 }}>
       <div style={{
         position: 'absolute', inset: -2, borderRadius: 20,
         background: hovered ? `conic-gradient(from var(--angle), transparent 0%, rgba(${glowColor},0.9) 20%, transparent 50%)` : 'transparent',
@@ -59,15 +60,15 @@ function StatCard({ icon, value, label, color, glowColor, danger }) {
       }} />
       <div style={{
         position: 'relative', zIndex: 1, background: danger ? '#fff5f5' : '#fff',
-        borderRadius: 16, padding: '18px 20px', border: danger ? '1px solid #fecaca' : '1px solid #e2e8f0',
-        display: 'flex', alignItems: 'center', gap: 14,
+        borderRadius: 16, padding: '16px 18px', border: danger ? '1px solid #fecaca' : '1px solid #e2e8f0',
+        display: 'flex', alignItems: 'center', gap: 12,
         transform: hovered ? 'translateY(-2px)' : 'none',
         boxShadow: hovered ? `0 8px 24px rgba(${glowColor},0.15)` : '0 1px 3px rgba(0,0,0,0.06)',
         transition: 'all 0.25s cubic-bezier(0.34,1.56,0.64,1)'
       }}>
-        <div style={{ width: 44, height: 44, borderRadius: 10, background: danger ? '#fee2e2' : `rgba(${glowColor},0.08)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
+        <div style={{ width: 42, height: 42, borderRadius: 10, background: danger ? '#fee2e2' : `rgba(${glowColor},0.08)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{label}</div>
         </div>
       </div>
@@ -75,75 +76,129 @@ function StatCard({ icon, value, label, color, glowColor, danger }) {
   );
 }
 
+// ── ADD VEHICLE MODAL — identical fields to TM version ──
 function AddVehicleModal({ companyId, onClose, onSaved }) {
-  const [form, setForm] = useState({ reg: '', make: '', model: '', type: 'HGV', mot_expiry: '', pmi_expiry: '' });
+  const [form, setForm] = useState({
+    reg: '', type: 'HGV', make: '', model: '', year: new Date().getFullYear().toString(),
+    mot_due: '', pmi_due: '', insurance_due: '', tacho_due: '', service_due: '', pmi_interval: '6',
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  function generateQRCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = 'QR-';
+    for (let i = 0; i < 8; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+    return result;
+  }
+
   async function save() {
-    if (!form.reg) { setError('Registration is required'); return; }
+    if (!form.reg.trim()) { setError('Registration is required'); return; }
     setSaving(true); setError('');
+    const qr_code = generateQRCode();
     const { error: err } = await supabase.from('vehicles').insert({
-      reg: form.reg.toUpperCase(),
-      make: form.make,
-      model: form.model,
-      type: form.type,
-      mot_expiry: form.mot_expiry || null,
-      pmi_expiry: form.pmi_expiry || null,
-      company_id: companyId,
-      status: 'active',
+      reg:           form.reg.trim().toUpperCase(),
+      type:          form.type,
+      make:          form.make || null,
+      model:         form.model || null,
+      year:          form.year ? parseInt(form.year) : null,
+      mot_due:       form.mot_due || null,
+      pmi_due:       form.pmi_due || null,
+      insurance_due: form.insurance_due || null,
+      tacho_due:     form.tacho_due || null,
+      service_due:   form.service_due || null,
+      pmi_interval:  form.pmi_interval ? parseInt(form.pmi_interval) : 6,
+      company_id:    companyId,
+      status:        'active',
+      qr_code:       qr_code,
     });
     setSaving(false);
     if (err) { setError(err.message); return; }
     onSaved(); onClose();
   }
 
-  const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
+  const inp = { width: '100%', padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 14, fontFamily: 'inherit', outline: 'none', background: '#fff', boxSizing: 'border-box' };
+  const lbl = { display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 480, boxShadow: '0 24px 64px rgba(0,0,0,0.3)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '22px 28px', background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>🚛 Add Vehicle</div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Add a new vehicle to your fleet</div>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 540, boxShadow: '0 24px 64px rgba(0,0,0,0.25)', overflow: 'hidden', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>+ Add Vehicle</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}>✕</button>
         </div>
-        <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {error && <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>⚠️ {error}</div>}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Registration *</label>
-            <input value={form.reg} onChange={e => setForm({ ...form, reg: e.target.value.toUpperCase() })} placeholder="e.g. MK20 UUA" style={inputStyle} />
-          </div>
+
+        {/* Body */}
+        <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, fontSize: 13, color: '#dc2626', fontWeight: 600 }}>⚠️ {error}</div>}
+
+          {/* Registration + Type */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Make</label>
-              <input value={form.make} onChange={e => setForm({ ...form, make: e.target.value })} placeholder="e.g. DAF" style={inputStyle} />
+              <label style={lbl}>Registration *</label>
+              <input value={form.reg} onChange={e => setForm({ ...form, reg: e.target.value.toUpperCase() })} placeholder="BD63 XYZ" style={inp} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Model</label>
-              <input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} placeholder="e.g. XF 480" style={inputStyle} />
+              <label style={lbl}>Type</label>
+              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={inp}>
+                {['HGV', 'LGV', 'Van', 'Trailer', 'Other'].map(t => <option key={t}>{t}</option>)}
+              </select>
             </div>
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>Vehicle Type</label>
-            <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, background: '#fff' }}>
-              {['HGV', 'LGV', 'Van', 'Trailer', 'Other'].map(t => <option key={t}>{t}</option>)}
-            </select>
+
+          {/* Make + Model + Year */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lbl}>Make</label>
+              <input value={form.make} onChange={e => setForm({ ...form, make: e.target.value })} placeholder="DAF" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Model</label>
+              <input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} placeholder="CF 330" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Year</label>
+              <input value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} placeholder="2024" style={inp} />
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>MOT Expiry</label>
-              <input type="date" value={form.mot_expiry} onChange={e => setForm({ ...form, mot_expiry: e.target.value })} style={inputStyle} />
+
+          {/* Compliance Dates */}
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 14, padding: '16px 18px' }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e40af', marginBottom: 14 }}>📅 Compliance Dates</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[
+                { key: 'mot_due',       label: 'MOT Due' },
+                { key: 'pmi_due',       label: 'PMI Due' },
+                { key: 'insurance_due', label: 'Insurance' },
+                { key: 'tacho_due',     label: 'Tacho Cal' },
+                { key: 'service_due',   label: 'Service Due' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ ...lbl, color: '#1e40af' }}>{f.label}</label>
+                  <input type="date" value={form[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })} style={{ ...inp, borderColor: '#bfdbfe' }} />
+                </div>
+              ))}
+              <div>
+                <label style={{ ...lbl, color: '#1e40af' }}>PMI Interval (wks)</label>
+                <input value={form.pmi_interval} onChange={e => setForm({ ...form, pmi_interval: e.target.value })} placeholder="6" style={{ ...inp, borderColor: '#bfdbfe' }} />
+              </div>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>PMI Expiry</label>
-              <input type="date" value={form.pmi_expiry} onChange={e => setForm({ ...form, pmi_expiry: e.target.value })} style={inputStyle} />
-            </div>
+          </div>
+
+          {/* QR note */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10 }}>
+            <span style={{ fontSize: 18 }}>📱</span>
+            <div style={{ fontSize: 12, color: '#166534', fontWeight: 600 }}>A QR code will be automatically generated for walkaround checks</div>
           </div>
         </div>
-        <div style={{ padding: '18px 28px', borderTop: '1px solid #f3f4f6', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <button onClick={onClose} style={{ padding: '10px 20px', border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-          <button onClick={save} disabled={saving || !form.reg}
-            style={{ padding: '10px 24px', border: 'none', borderRadius: 10, background: form.reg ? 'linear-gradient(135deg, #1e40af, #3b82f6)' : '#e5e7eb', color: '#fff', fontSize: 13, fontWeight: 700, cursor: form.reg ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: 10, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ padding: '11px 22px', border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+          <button onClick={save} disabled={saving || !form.reg.trim()}
+            style={{ padding: '11px 24px', border: 'none', borderRadius: 12, background: form.reg.trim() ? 'linear-gradient(135deg, #1e40af, #3b82f6)' : '#e5e7eb', color: '#fff', fontSize: 14, fontWeight: 700, cursor: form.reg.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit', boxShadow: form.reg.trim() ? '0 4px 14px rgba(37,99,235,0.4)' : 'none' }}>
             {saving ? 'Adding...' : '+ Add Vehicle'}
           </button>
         </div>
@@ -152,6 +207,7 @@ function AddVehicleModal({ companyId, onClose, onSaved }) {
   );
 }
 
+// ── MAIN PORTAL ──
 export default function CompanyPortal() {
   const [company, setCompany] = useState(null);
   const [vehicles, setVehicles] = useState([]);
@@ -160,7 +216,6 @@ export default function CompanyPortal() {
   const [drivers, setDrivers] = useState([]);
   const [driverHours, setDriverHours] = useState([]);
   const [tachoUploads, setTachoUploads] = useState([]);
-  const [qrCodes, setQrCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddVehicle, setShowAddVehicle] = useState(false);
@@ -183,21 +238,17 @@ export default function CompanyPortal() {
       supabase.from('driver_hours').select('*, drivers(name)').eq('company_id', cid).order('shift_date', { ascending: false }),
       supabase.from('tacho_uploads').select('*, drivers(name)').eq('company_id', cid).order('created_at', { ascending: false }),
     ]);
-    setVehicles(v || []);
-    setDefects(d || []);
-    setChecks(c || []);
+    setVehicles(v || []); setDefects(d || []); setChecks(c || []);
     setDrivers(dr || []);
     setDriverHours((dh || []).map(r => ({ ...r, driverName: r.drivers?.name || 'Unknown' })));
     setTachoUploads((tu || []).map(r => ({ ...r, driverName: r.drivers?.name || 'Unknown' })));
-    // QR codes — vehicles with qr_code set
-    setQrCodes((v || []).filter(x => x.qr_code));
     setLoading(false);
   }
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0f172a', fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🚛</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🚛</div>
         <div style={{ color: '#64748b' }}>Loading your portal...</div>
       </div>
     </div>
@@ -205,7 +256,7 @@ export default function CompanyPortal() {
 
   if (!company) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0f172a', fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ textAlign: 'center', maxWidth: 400 }}>
+      <div style={{ textAlign: 'center', maxWidth: 380 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>No company linked</div>
         <div style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>Contact your Transport Manager or ComplyFleet support.</div>
@@ -217,24 +268,17 @@ export default function CompanyPortal() {
 
   const openDefects = defects.filter(d => d.status === 'open');
   const dangerousDefects = openDefects.filter(d => d.severity === 'DANGEROUS');
-  const overdueVehicles = vehicles.filter(v => v.mot_expiry && new Date(v.mot_expiry) < new Date());
+  const overdueVehicles = vehicles.filter(v => {
+    if (v.mot_due && new Date(v.mot_due) < new Date()) return true;
+    if (v.mot_expiry && new Date(v.mot_expiry) < new Date()) return true;
+    return false;
+  });
   const hoursViolations = driverHours.filter(h => h.violations?.length > 0);
+  const qrCodes = vehicles.filter(v => v.qr_code);
   const complianceScore = Math.max(0, 100 - dangerousDefects.length * 20 - openDefects.length * 5 - overdueVehicles.length * 15 - hoursViolations.length * 3);
   const scoreColor = complianceScore >= 80 ? '#16a34a' : complianceScore >= 60 ? '#d97706' : '#dc2626';
   const scoreGlow = complianceScore >= 80 ? '22,163,74' : complianceScore >= 60 ? '217,119,6' : '220,38,38';
 
-  const TABS = [
-    { key: 'overview', icon: '📊', label: 'Overview' },
-    { key: 'vehicles', icon: '🚛', label: `Vehicles (${vehicles.length})` },
-    { key: 'defects',  icon: '⚠️', label: `Defects (${openDefects.length})` },
-    { key: 'checks',   icon: '📋', label: `Checks (${checks.length})` },
-    { key: 'drivers',  icon: '👤', label: `Drivers (${drivers.length})` },
-    { key: 'hours',    icon: '⏱️', label: 'Driver Hours' },
-    { key: 'qrcodes',  icon: '📱', label: `QR Codes (${qrCodes.length})` },
-    { key: 'tacho',    icon: '📁', label: `Tacho (${tachoUploads.length})` },
-  ];
-
-  // Bottom nav items (like TM dashboard)
   const NAV = [
     { key: 'overview', icon: '📊', label: 'Overview' },
     { key: 'vehicles', icon: '🚛', label: 'Vehicles' },
@@ -285,7 +329,7 @@ export default function CompanyPortal() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>{company.name}</h1>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>{company.operator_licence && `Licence: ${company.operator_licence}`}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>{company.operator_licence ? `Licence: ${company.operator_licence}` : 'No licence set'}</div>
               </div>
               <button onClick={() => setShowAddVehicle(true)} style={{ background: 'linear-gradient(135deg, #1e40af, #3b82f6)', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.4)', fontFamily: 'inherit' }}>
                 + Add Vehicle
@@ -293,7 +337,7 @@ export default function CompanyPortal() {
             </div>
 
             {dangerousDefects.length > 0 && (
-              <div style={{ background: 'linear-gradient(135deg, #fef2f2, #fff5f5)', border: '1px solid #fecaca', borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 16px rgba(220,38,38,0.1)' }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 16px rgba(220,38,38,0.1)' }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🚨</div>
                 <div>
                   <div style={{ fontWeight: 800, color: '#991b1b', fontSize: 13 }}>Immediate action required</div>
@@ -302,16 +346,15 @@ export default function CompanyPortal() {
               </div>
             )}
 
-            {/* Stats */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-              <StatCard icon="🚛" value={vehicles.length}        label="Vehicles"         color="#2563eb"  glowColor="37,99,235"   danger={false} />
-              <StatCard icon="⚠️" value={openDefects.length}     label="Open Defects"     color={openDefects.length > 0 ? '#dc2626' : '#16a34a'} glowColor={openDefects.length > 0 ? '220,38,38' : '22,163,74'} danger={openDefects.length > 0} />
-              <StatCard icon="📋" value={checks.length}          label="Total Checks"     color="#7c3aed"  glowColor="124,58,237"  danger={false} />
-              <StatCard icon="👤" value={drivers.length}         label="Drivers"          color="#0369a1"  glowColor="3,105,161"   danger={false} />
+              <StatCard icon="🚛" value={vehicles.length}        label="Vehicles"      color="#2563eb"  glowColor="37,99,235"  danger={false} />
+              <StatCard icon="⚠️" value={openDefects.length}     label="Open Defects"  color={openDefects.length > 0 ? '#dc2626' : '#16a34a'} glowColor={openDefects.length > 0 ? '220,38,38' : '22,163,74'} danger={openDefects.length > 0} />
+              <StatCard icon="📋" value={checks.length}          label="Checks"        color="#7c3aed"  glowColor="124,58,237" danger={false} />
+              <StatCard icon="👤" value={drivers.length}         label="Drivers"       color="#0369a1"  glowColor="3,105,161"  danger={false} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {/* Compliance Score */}
+              {/* Score */}
               <GlowCard glowColor={scoreGlow}>
                 <div style={{ padding: 20 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>📊 Compliance Score</div>
@@ -329,8 +372,8 @@ export default function CompanyPortal() {
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: scoreColor }}>
-                        {complianceScore >= 80 ? '✅ Good' : complianceScore >= 60 ? '⚠️ Attention' : '🚨 High Risk'}
+                      <div style={{ fontSize: 13, fontWeight: 800, color: scoreColor }}>
+                        {complianceScore >= 80 ? '✅ Good Standing' : complianceScore >= 60 ? '⚠️ Needs Attention' : '🚨 High Risk'}
                       </div>
                       <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, lineHeight: 1.8 }}>
                         {openDefects.length > 0 && <div>🔧 {openDefects.length} open defects</div>}
@@ -361,7 +404,7 @@ export default function CompanyPortal() {
                 </div>
               </GlowCard>
 
-              {/* Open Defects */}
+              {/* Defects */}
               <GlowCard glowColor={openDefects.length > 0 ? '220,38,38' : '22,163,74'}>
                 <div style={{ padding: 20 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>⚠️ Open Defects</div>
@@ -369,7 +412,7 @@ export default function CompanyPortal() {
                     ? <div style={{ color: '#16a34a', fontSize: 13, fontWeight: 700, textAlign: 'center', padding: '12px 0' }}>✅ No open defects</div>
                     : openDefects.slice(0, 3).map(d => (
                       <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f1f5f9' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>{d.description || d.category}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', flex: 1, marginRight: 8 }}>{d.description || d.category}</div>
                         <Badge label={d.severity} color={d.severity === 'DANGEROUS' ? '#dc2626' : d.severity === 'MAJOR' ? '#d97706' : '#64748b'} bg={d.severity === 'DANGEROUS' ? '#fef2f2' : d.severity === 'MAJOR' ? '#fffbeb' : '#f8fafc'} />
                       </div>
                     ))
@@ -387,14 +430,14 @@ export default function CompanyPortal() {
                   {vehicles.length === 0
                     ? <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No vehicles yet</div>
                     : vehicles.slice(0, 4).map(v => {
-                      const motOverdue = v.mot_expiry && new Date(v.mot_expiry) < new Date();
+                      const overdue = (v.mot_due && new Date(v.mot_due) < new Date()) || (v.mot_expiry && new Date(v.mot_expiry) < new Date());
                       return (
                         <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f1f5f9' }}>
                           <div>
                             <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{v.reg}</div>
                             <div style={{ fontSize: 10, color: '#94a3b8' }}>{v.type}</div>
                           </div>
-                          {motOverdue ? <Badge label="MOT Overdue" color="#dc2626" bg="#fef2f2" /> : <Badge label="✅ OK" color="#16a34a" bg="#f0fdf4" />}
+                          {overdue ? <Badge label="Overdue" color="#dc2626" bg="#fef2f2" /> : <Badge label="✅ OK" color="#16a34a" bg="#f0fdf4" />}
                         </div>
                       );
                     })
@@ -413,22 +456,24 @@ export default function CompanyPortal() {
               <button onClick={() => setShowAddVehicle(true)} style={{ background: 'linear-gradient(135deg, #1e40af, #3b82f6)', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.4)', fontFamily: 'inherit' }}>+ Add Vehicle</button>
             </div>
             {vehicles.length === 0
-              ? <GlowCard><div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>No vehicles yet — add your first!</div></GlowCard>
+              ? <GlowCard><div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>No vehicles yet</div></GlowCard>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {vehicles.map(v => {
-                  const motOverdue = v.mot_expiry && new Date(v.mot_expiry) < new Date();
+                  const motOverdue = (v.mot_due && new Date(v.mot_due) < new Date()) || (v.mot_expiry && new Date(v.mot_expiry) < new Date());
+                  const motDate = v.mot_due || v.mot_expiry;
                   return (
                     <GlowCard key={v.id} glowColor={motOverdue ? '220,38,38' : '37,99,235'}>
                       <div style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: 10, background: motOverdue ? '#fee2e2' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🚛</div>
+                          <div style={{ width: 42, height: 42, borderRadius: 10, background: motOverdue ? '#fee2e2' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🚛</div>
                           <div>
                             <div style={{ fontWeight: 800, color: '#0f172a' }}>{v.reg}</div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>{v.make} {v.model} · {v.type}</div>
-                            {v.mot_expiry && <div style={{ fontSize: 11, color: motOverdue ? '#dc2626' : '#64748b', marginTop: 1 }}>MOT: {new Date(v.mot_expiry).toLocaleDateString('en-GB')}</div>}
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{[v.make, v.model, v.year].filter(Boolean).join(' ')} · {v.type}</div>
+                            {motDate && <div style={{ fontSize: 11, color: motOverdue ? '#dc2626' : '#64748b', marginTop: 2 }}>MOT: {new Date(motDate).toLocaleDateString('en-GB')}</div>}
+                            {v.qr_code && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>📱 {v.qr_code}</div>}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                           {motOverdue && <Badge label="MOT Overdue" color="#dc2626" bg="#fef2f2" />}
                           <Badge label="Active" color="#16a34a" bg="#f0fdf4" />
                         </div>
@@ -436,6 +481,29 @@ export default function CompanyPortal() {
                     </GlowCard>
                   );
                 })}
+              </div>
+            }
+          </>
+        )}
+
+        {/* ── CHECKS ── */}
+        {activeTab === 'checks' && (
+          <>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 16px' }}>📋 Walkaround Checks</h2>
+            {checks.length === 0
+              ? <GlowCard><div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>No checks yet</div></GlowCard>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {checks.map(c => (
+                  <GlowCard key={c.id} glowColor={c.overall_status === 'SAFE' ? '22,163,74' : '220,38,38'}>
+                    <div style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{c.drivers?.name || 'Unknown'}</div>
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Ref: {c.reference} · {new Date(c.created_at).toLocaleDateString('en-GB')}</div>
+                      </div>
+                      <Badge label={c.overall_status || 'PENDING'} color={c.overall_status === 'SAFE' ? '#16a34a' : '#dc2626'} bg={c.overall_status === 'SAFE' ? '#f0fdf4' : '#fef2f2'} />
+                    </div>
+                  </GlowCard>
+                ))}
               </div>
             }
           </>
@@ -459,29 +527,6 @@ export default function CompanyPortal() {
                         <Badge label={d.severity} color={d.severity === 'DANGEROUS' ? '#dc2626' : d.severity === 'MAJOR' ? '#d97706' : '#64748b'} bg={d.severity === 'DANGEROUS' ? '#fef2f2' : d.severity === 'MAJOR' ? '#fffbeb' : '#f8fafc'} />
                         <Badge label={d.status?.toUpperCase()} color={d.status === 'open' ? '#dc2626' : '#16a34a'} bg={d.status === 'open' ? '#fff5f5' : '#f0fdf4'} />
                       </div>
-                    </div>
-                  </GlowCard>
-                ))}
-              </div>
-            }
-          </>
-        )}
-
-        {/* ── CHECKS ── */}
-        {activeTab === 'checks' && (
-          <>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 16px' }}>📋 Walkaround Checks</h2>
-            {checks.length === 0
-              ? <GlowCard><div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>No checks yet</div></GlowCard>
-              : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {checks.map(c => (
-                  <GlowCard key={c.id} glowColor={c.overall_status === 'SAFE' ? '22,163,74' : '220,38,38'}>
-                    <div style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{c.drivers?.name || 'Unknown'}</div>
-                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Ref: {c.reference} · {new Date(c.created_at).toLocaleDateString('en-GB')}</div>
-                      </div>
-                      <Badge label={c.overall_status || 'PENDING'} color={c.overall_status === 'SAFE' ? '#16a34a' : '#dc2626'} bg={c.overall_status === 'SAFE' ? '#f0fdf4' : '#fef2f2'} />
                     </div>
                   </GlowCard>
                 ))}
@@ -570,14 +615,14 @@ export default function CompanyPortal() {
             <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 4px' }}>📱 QR Codes</h2>
             <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 13 }}>Print and place in vehicle cab for driver walkaround checks</p>
             {qrCodes.length === 0
-              ? <GlowCard><div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>No QR codes yet — contact your Transport Manager to generate them</div></GlowCard>
+              ? <GlowCard><div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>No QR codes yet — add vehicles to generate them automatically</div></GlowCard>
               : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
                 {qrCodes.map(v => (
                   <GlowCard key={v.id} glowColor="124,58,237">
                     <div style={{ padding: 20, textAlign: 'center' }}>
                       <div style={{ fontSize: 36, marginBottom: 8 }}>📱</div>
                       <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>{v.reg}</div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 12 }}>{v.qr_code?.slice(0, 14)}...</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 12 }}>{v.qr_code}</div>
                       <a href={`/portal/${v.qr_code}`} target="_blank" rel="noreferrer"
                         style={{ display: 'inline-block', padding: '7px 16px', borderRadius: 8, background: 'linear-gradient(135deg, #7c3aed, #a855f7)', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
                         Open →
@@ -605,7 +650,7 @@ export default function CompanyPortal() {
                         <div style={{ width: 38, height: 38, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>📁</div>
                         <div>
                           <div style={{ fontWeight: 700, color: '#0f172a', fontSize: 13 }}>{u.file_name}</div>
-                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{u.driverName} · {(u.file_size / 1024).toFixed(1)} KB · {new Date(u.created_at).toLocaleDateString('en-GB')}</div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{u.driverName} · {new Date(u.created_at).toLocaleDateString('en-GB')}</div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
@@ -622,7 +667,7 @@ export default function CompanyPortal() {
 
       </div>
 
-      {/* ── BOTTOM NAV (like TM dashboard) ── */}
+      {/* ── BOTTOM NAV ── */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', zIndex: 100, boxShadow: '0 -4px 16px rgba(0,0,0,0.08)' }}>
         {NAV.map(n => (
           <button key={n.key} onClick={() => setActiveTab(n.key)}
