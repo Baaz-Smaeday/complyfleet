@@ -38,7 +38,7 @@ export default function LoginPage() {
       case "platform_owner": window.location.href = "/admin"; break;
       case "tm": window.location.href = "/dashboard"; break;
       case "company_admin":
-      case "company_viewer": window.location.href = "/portal"; break;
+      case "company_viewer": window.location.href = "/company-portal"; break;
       default: window.location.href = "/dashboard";
     }
   }
